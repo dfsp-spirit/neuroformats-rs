@@ -80,3 +80,11 @@ impl CurvHeader {
     }
 
 }
+
+
+// An FsCurv object
+//#[derive(Debug, PartialEq, Clone)]
+//pub struct FsCurv {
+//    header: CurvHeader,
+//    data: i32[], # must be vector 
+//}
