@@ -11,7 +11,10 @@ use std::io::{BufReader, Read};
 use std::path::{Path};
 
 use crate::util::is_gz_file;
-use crate::error::Result;
+use crate::error::{NeuroformatsError, Result};
+
+
+pub const CURV_MAGIC_CODE_U8: u8 = 255;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CurvHeader {
@@ -69,7 +72,11 @@ impl CurvHeader {
         hdr.num_faces = input.read_i32()?;
         hdr.num_values_per_vertex = input.read_i32()?;
 
-        Ok(hdr)
+        if !(hdr.curv_magic[0] == CURV_MAGIC_CODE_U8 && hdr.curv_magic[1] == CURV_MAGIC_CODE_U8 && hdr.curv_magic[2] == CURV_MAGIC_CODE_U8) {
+            Err(NeuroformatsError::InvalidCurvFormat)
+        } else {
+            Ok(hdr)
+        }
     }
 
 }
