@@ -3,9 +3,15 @@
 // for each vertex of the respective brain surface mesh.
 
 
-use byteorder::{BigEndian, ReadBytesExt};
+use byteordered::{ByteOrdered};
 use flate2::bufread::GzDecoder;
 
+use std::fs::File;
+use std::io::{BufReader, Read};
+use std::path::{Path};
+
+use crate::util::is_gz_file;
+use crate::error::Result;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CurvHeader {
@@ -53,13 +59,12 @@ impl CurvHeader {
         let mut hdr = CurvHeader::default();
     
         // try the system's native endianness first
-        let mut input = ByteOrdered::BigEndian(input);
+        let mut input = ByteOrdered::be(input);
 
         for v in &mut hdr.curv_magic {
             *v = input.read_u8()?;
         }
     
-        hdr.curv_magic = input.read_i32()?;
         hdr.num_vertices = input.read_i32()?;
         hdr.num_faces = input.read_i32()?;
         hdr.num_values_per_vertex = input.read_i32()?;
