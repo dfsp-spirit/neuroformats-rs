@@ -3,6 +3,12 @@ name = "neuroformats"
 version = "0.1.0"
 authors = ["Tim Schäfer <ts+code@rcmd.org>"]
 edition = "2018"
+repository = "https://github.com/dfsp-spirit/neuroformats-rs"
+homepage = "https://github.com/dfsp-spirit/neuroformats-rs"
+keywords = ["neuroimaging", "brain", "MRI", "fileformats", "neuroscience"]
+categories = ["filesystem", "science", "parser-implementations"]
+description = "Handling of structural neuroimaging file formats."
+license = "MIT OR Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
