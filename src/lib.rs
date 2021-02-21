@@ -6,4 +6,4 @@ mod util;
 pub mod error;
 pub mod fs_curv;
 
-pub use fs_curv::CurvHeader;
+pub use fs_curv::{CurvHeader, FsCurv, read_curv};

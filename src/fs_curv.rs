@@ -84,8 +84,12 @@ impl CurvHeader {
 // An FsCurv object
 #[derive(Debug, PartialEq, Clone)]
 pub struct FsCurv {
-    header: CurvHeader,
-    data: Vec<i32>, 
+    pub header: CurvHeader,
+    pub data: Vec<i32>, 
+}
+
+pub fn read_curv<P: AsRef<Path> + Copy>(path: P) -> Result<FsCurv> {
+    FsCurv::from_file(path)
 }
 
 
