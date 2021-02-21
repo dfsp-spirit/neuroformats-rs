@@ -2,6 +2,10 @@
 //!
 //! The focus of this package is on surface-based MRI data as produced by FreeSurfer.
 
+
+#[cfg(test)]
+extern crate approx;
+
 mod util;
 pub mod error;
 pub mod fs_curv;

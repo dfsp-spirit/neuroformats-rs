@@ -85,7 +85,7 @@ impl CurvHeader {
 #[derive(Debug, PartialEq, Clone)]
 pub struct FsCurv {
     pub header: CurvHeader,
-    pub data: Vec<i32>, 
+    pub data: Vec<f32>, 
 }
 
 pub fn read_curv<P: AsRef<Path> + Copy>(path: P) -> Result<FsCurv> {
@@ -105,7 +105,7 @@ impl FsCurv {
         let file = BufReader::new(File::open(path)?);
 
 
-        let data: Vec<i32> = if gz { FsCurv::curv_data_from_reader(GzDecoder::new(file), &hdr) } else  { FsCurv::curv_data_from_reader(file, &hdr) };
+        let data: Vec<f32> = if gz { FsCurv::curv_data_from_reader(GzDecoder::new(file), &hdr) } else  { FsCurv::curv_data_from_reader(file, &hdr) };
 
         let curv = FsCurv { 
             header : hdr,
@@ -115,7 +115,7 @@ impl FsCurv {
         Ok(curv)
     }
 
-    pub fn curv_data_from_reader<S>(input: S, hdr: &CurvHeader) -> Vec<i32>
+    pub fn curv_data_from_reader<S>(input: S, hdr: &CurvHeader) -> Vec<f32>
     where
         S: Read,
     {
@@ -127,14 +127,15 @@ impl FsCurv {
 
         let mut input = ByteOrdered::be(input);
 
+        // This is only read because we cannot seek in a GZ stream.
         let mut hdr_data : Vec<u8> = Vec::with_capacity(hdr_size as usize);
         for _ in 1..=hdr_size {
             hdr_data.push(input.read_u8().unwrap());
         }
 
-        let mut data : Vec<i32> = Vec::with_capacity(hdr.num_vertices as usize);
+        let mut data : Vec<f32> = Vec::with_capacity(hdr.num_vertices as usize);
         for _ in 1..=hdr.num_vertices {
-            data.push(input.read_i32().unwrap());
+            data.push(input.read_f32().unwrap());
         }
         data
     }
@@ -144,6 +145,7 @@ impl FsCurv {
 #[cfg(test)]
 mod test { 
     use super::*;
+    use approx::assert_abs_diff_eq;
 
     #[test]
     fn the_demo_curv_file_can_be_read() {
@@ -153,5 +155,13 @@ mod test {
         assert_eq!(149244, curv.header.num_vertices);
         assert_eq!(298484, curv.header.num_faces);
         assert_eq!(1, curv.header.num_values_per_vertex);
+        assert_eq!(149244, curv.data.len());        
+
+        let mut curv_data_sorted = curv.data.to_vec();
+        curv_data_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let min: f32 = curv_data_sorted[0];
+        let max: f32 = curv_data_sorted[curv_data_sorted.len() - 1];
+        assert_abs_diff_eq!(0.0, min, epsilon = 1e-10);
+        assert_abs_diff_eq!(5.0, max, epsilon = 1e-10);
     }
 }
