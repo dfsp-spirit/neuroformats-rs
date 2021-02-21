@@ -61,7 +61,6 @@ impl CurvHeader {
     {
         let mut hdr = CurvHeader::default();
     
-        // try the system's native endianness first
         let mut input = ByteOrdered::be(input);
 
         for v in &mut hdr.curv_magic {
@@ -83,8 +82,59 @@ impl CurvHeader {
 
 
 // An FsCurv object
-//#[derive(Debug, PartialEq, Clone)]
-//pub struct FsCurv {
-//    header: CurvHeader,
-//    data: i32[], # must be vector 
-//}
+#[derive(Debug, PartialEq, Clone)]
+pub struct FsCurv {
+    header: CurvHeader,
+    data: Vec<i32>, 
+}
+
+
+impl FsCurv {
+    /// Read a Curv header from a file.
+    /// If the file's name ends with ".gz", the file is assumed to need GZip decoding. This is not typically the case
+    /// for FreeSurfer Curv files, but very handy (and it helps us to reduce the size of our test data).
+    pub fn from_file<P: AsRef<Path> + Copy>(path: P) -> Result<FsCurv> {
+        let gz = is_gz_file(&path);
+
+        let hdr = CurvHeader::from_file(path).unwrap();
+
+        let file = BufReader::new(File::open(path)?);
+
+
+        let data: Vec<i32> = if gz { FsCurv::curv_data_from_reader(GzDecoder::new(file), &hdr) } else  { FsCurv::curv_data_from_reader(file, &hdr) };
+
+        let curv = FsCurv { 
+            header : hdr,
+            data: data,
+        };
+
+        Ok(curv)
+    }
+
+    pub fn curv_data_from_reader<S>(input: S, hdr: &CurvHeader) -> Vec<i32>
+    where
+        S: Read,
+    {
+    
+        let input = ByteOrdered::be(input);
+
+        let hdr_size = 15;
+        
+
+        let mut input = ByteOrdered::be(input);
+
+        let mut hdr_data : Vec<u8> = Vec::with_capacity(hdr_size as usize);
+        for _ in 1..=hdr_size {
+            hdr_data.push(input.read_u8().unwrap());
+        }
+
+        let mut data : Vec<i32> = Vec::with_capacity(hdr.num_vertices as usize);
+        for _ in 1..=hdr.num_vertices {
+            data.push(input.read_i32().unwrap());
+        }
+        data
+    }
+}
+
+
+
