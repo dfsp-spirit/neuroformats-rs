@@ -141,4 +141,17 @@ impl FsCurv {
 }
 
 
+#[cfg(test)]
+mod test { 
+    use super::*;
 
+    #[test]
+    fn the_demo_curv_file_can_be_read() {
+        const CURV_FILE: &str = "resources/subjects_dir/subject1/surf/lh.thickness";
+        let curv = read_curv(CURV_FILE).unwrap();
+
+        assert_eq!(149244, curv.header.num_vertices);
+        assert_eq!(298484, curv.header.num_faces);
+        assert_eq!(1, curv.header.num_values_per_vertex);
+    }
+}
