@@ -18,3 +18,5 @@ curv = read_curv("path/to/lh.thickness")
 Continuous integration results:
 
 [![Build Status](https://travis-ci.org/dfsp-spirit/neuroformats-rs.svg?branch=main)](https://travis-ci.org/dfsp-spirit/neuroformats-rs) Travis CI under Linux
+
+[![codecov](https://codecov.io/gh/dfsp-spirit/neuroformats-rs/branch/main/graph/badge.svg?token=VESCG8GQ9K)](https://codecov.io/gh/dfsp-spirit/neuroformats-rs)
