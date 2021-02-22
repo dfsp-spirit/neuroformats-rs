@@ -7,10 +7,15 @@ This crate provides access to structural neuroimaging data in Rust by implementi
 
 ## Usage example
 
+Read vertex-wise cortical thickness computed by FreeSurfer:
+
 ```rust
 use neuroformats::read_curv;
-curv = read_curv("path/to/lh.thickness")
+curv = read_curv("subjects_dir/subject1/surf/lh.thickness")
 ```
+
+You now have a `Vec<f32>` with the cortical thickness values in `curv.data`. The order of the values matches the vertex order of the respective brain surface reconstruction (e.g., the white surface mesh in `subjects_dir/subject1/surf/lh.white`).
+
 
 ## Development
 
