@@ -3,6 +3,7 @@ Handling of structural neuroimaging file formats for [Rust](https://www.rust-lan
 
 This is work in progress, come back another day.
 
+This crate provides access to structural neuroimaging data in Rust by implementing parsers for various file formats. The focus is on surface-based brain morphometry data, as produced from 3D MRI images by tools like [FreeSurfer](http://freesurfer.net/), [CAT12](http://www.neuro.uni-jena.de/cat/) or others.
 
 ## Usage example
 
