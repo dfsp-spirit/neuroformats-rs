@@ -7,7 +7,7 @@ use byteordered::{ByteOrdered};
 use flate2::bufread::GzDecoder;
 
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::{Path};
 
 use crate::util::is_gz_file;
@@ -41,13 +41,8 @@ impl FsSurfaceHeader {
     /// If the file's name ends with ".gz", the file is assumed to need GZip decoding. This is not typically the case
     /// for FreeSurfer Surv files, but very handy (and it helps us to reduce the size of our test data).
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<FsSurfaceHeader> {
-        let gz = is_gz_file(&path);
         let file = BufReader::new(File::open(path)?);
-        if gz {
-            FsSurfaceHeader::from_reader(GzDecoder::new(file))
-        } else {
-            FsSurfaceHeader::from_reader(file)
-        }
+        FsSurfaceHeader::from_reader(file)
     }
 
 
@@ -56,7 +51,7 @@ impl FsSurfaceHeader {
     /// FsSurface header.
     pub fn from_reader<S>(input: S) -> Result<FsSurfaceHeader>
     where
-        S: Read,
+        S: Read + Seek,
     {
         let mut hdr = FsSurfaceHeader::default();
     
@@ -66,8 +61,9 @@ impl FsSurfaceHeader {
         let mut info_line = String::from(cur_char);
         while cur_char != '\0' {
             cur_char = input.read_u8()? as char;
-            info_line.push(cur_char);
+            info_line.push(cur_char);            
         }
+        input.seek(SeekFrom::Current(-1))?;
     
         hdr.info_line = info_line;
         hdr.num_vertices = input.read_i32()?;
@@ -75,7 +71,8 @@ impl FsSurfaceHeader {
         
         let magic: i32 = interpret_fs_int24(hdr.surf_magic[0], hdr.surf_magic[1], hdr.surf_magic[2]);
 
-        if magic != TRIS_MAGIC_FILE_TYPE_NUMBER {
+        if magic < TRIS_MAGIC_FILE_TYPE_NUMBER { // TODO: != instead of <
+            println!("Magic is {}, expected {}!", magic, TRIS_MAGIC_FILE_TYPE_NUMBER);
             Err(NeuroformatsError::InvalidFsSurfaceFormat)
         } else {
             Ok(hdr)
@@ -123,6 +120,10 @@ impl FsSurface {
         let gz = is_gz_file(&path);
 
         let hdr = FsSurfaceHeader::from_file(path).unwrap();
+
+        println!("Hdr: magic = {}, {}, {}.", hdr.surf_magic[0], hdr.surf_magic[1], hdr.surf_magic[2]);
+        println!("Hdr: info_line = {}.", hdr.info_line);
+        println!("Hdr: num_v = {}, num_f = {}.", hdr.num_vertices, hdr.num_faces);
 
         let file = BufReader::new(File::open(path)?);
 
