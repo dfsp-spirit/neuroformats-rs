@@ -18,7 +18,7 @@ pub const TRIS_MAGIC_FILE_TYPE_NUMBER: i32 = 16777214;
 #[derive(Debug, Clone, PartialEq)]
 pub struct FsSurfaceHeader {
     pub surf_magic: [u8; 3],
-    pub info_line: str,
+    pub info_line: String,
     pub num_vertices: i32,
     pub num_faces: i32,
 }
@@ -28,7 +28,7 @@ impl Default for FsSurfaceHeader {
     fn default() -> FsSurfaceHeader {
         FsSurfaceHeader {
             surf_magic: [255; 3],
-            info_line: b"brain mesh\0",
+            info_line: String::from(""),
             num_vertices: 0,
             num_faces: 0
         }
@@ -46,7 +46,7 @@ impl FsSurfaceHeader {
         if gz {
             FsSurfaceHeader::from_reader(GzDecoder::new(file))
         } else {
-            FsSurfacevHeader::from_reader(file)
+            FsSurfaceHeader::from_reader(file)
         }
     }
 
@@ -64,8 +64,8 @@ impl FsSurfaceHeader {
 
         let mut cur_char = input.read_u8()? as char;
         let mut info_line = String::from(cur_char);
-        while cur_char != b'\0' {
-            cur_char = input.read_u8()?;
+        while cur_char != '\0' {
+            cur_char = input.read_u8()? as char;
             info_line.push(cur_char);
         }
     
@@ -110,7 +110,7 @@ pub struct BrainMesh {
 }
 
 
-pub fn read_curv<P: AsRef<Path> + Copy>(path: P) -> Result<FsCurv> {
+pub fn read_surf<P: AsRef<Path> + Copy>(path: P) -> Result<FsSurface> {
     FsSurface::from_file(path)
 }
 
@@ -144,7 +144,7 @@ impl FsSurface {
     
         let input = ByteOrdered::be(input);
 
-        let hdr_size = 3 + *hdr.info_line.len() + 4 + 4;
+        let hdr_size = 3 + hdr.info_line.len() + 4 + 4;
         
 
         let mut input = ByteOrdered::be(input);
@@ -155,21 +155,21 @@ impl FsSurface {
             hdr_data.push(input.read_u8().unwrap());
         }
 
-        let mut vertex_data : Vec<f32> = Vec::with_capacity(hdr.num_vertices * 3 as usize);
+        let mut vertex_data : Vec<f32> = Vec::with_capacity((hdr.num_vertices * 3) as usize);
         for _ in 1..=hdr.num_vertices * 3 {
             vertex_data.push(input.read_f32().unwrap());
         }
 
-        let mut face_data : Vec<i32> = Vec::with_capacity(hdr.num_faces * 3 as usize);
+        let mut face_data : Vec<i32> = Vec::with_capacity((hdr.num_faces * 3) as usize);
         for _ in 1..=hdr.num_faces * 3 {
             face_data.push(input.read_i32().unwrap());
         }
 
-        mesh = BrainMesh {
+        let mesh = BrainMesh {
             vertices : vertex_data,
             faces : face_data
         };
-        
+
         mesh
     }
 }

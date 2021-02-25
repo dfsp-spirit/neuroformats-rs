@@ -9,5 +9,8 @@ extern crate approx;
 mod util;
 pub mod error;
 pub mod fs_curv;
+pub mod fs_surface;
 
 pub use fs_curv::{CurvHeader, FsCurv, read_curv};
+pub use fs_surface::{FsSurfaceHeader, FsSurface, BrainMesh, read_surf};
+

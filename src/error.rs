@@ -10,6 +10,10 @@ quick_error! {
             display("Invalid Curv file")
         }
 
+        InvalidFsSurfaceFormat {
+            display("Invalid FreeSurfer surf file")
+        }
+
         /// I/O Error
         Io(err: IOError) {
             from()
