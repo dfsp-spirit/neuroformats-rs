@@ -14,6 +14,8 @@ use crate::util::is_gz_file;
 use crate::error::{NeuroformatsError, Result};
 
 pub const TRIS_MAGIC_FILE_TYPE_NUMBER: i32 = 16777214;
+pub const TRIS_MAGIC_FILE_TYPE_NUMBER_ALTERNATIVE: i32 = 16777215;
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FsSurfaceHeader {
@@ -38,8 +40,6 @@ impl Default for FsSurfaceHeader {
 impl FsSurfaceHeader {
     
     /// Read an FsSurface header from a file.
-    /// If the file's name ends with ".gz", the file is assumed to need GZip decoding. This is not typically the case
-    /// for FreeSurfer Surv files, but very handy (and it helps us to reduce the size of our test data).
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<FsSurfaceHeader> {
         let file = BufReader::new(File::open(path)?);
         FsSurfaceHeader::from_reader(file)
@@ -71,8 +71,7 @@ impl FsSurfaceHeader {
         
         let magic: i32 = interpret_fs_int24(hdr.surf_magic[0], hdr.surf_magic[1], hdr.surf_magic[2]);
 
-        if magic < TRIS_MAGIC_FILE_TYPE_NUMBER { // TODO: != instead of <
-            println!("Magic is {}, expected {}!", magic, TRIS_MAGIC_FILE_TYPE_NUMBER);
+        if !(magic == TRIS_MAGIC_FILE_TYPE_NUMBER || magic == TRIS_MAGIC_FILE_TYPE_NUMBER_ALTERNATIVE) {
             Err(NeuroformatsError::InvalidFsSurfaceFormat)
         } else {
             Ok(hdr)
@@ -114,8 +113,6 @@ pub fn read_surf<P: AsRef<Path> + Copy>(path: P) -> Result<FsSurface> {
 
 impl FsSurface {
     /// Read an FsSurface instance from a file.
-    /// If the file's name ends with ".gz", the file is assumed to need GZip decoding. This is not typically the case
-    /// for FreeSurfer Surface files, but very handy (and it helps us to reduce the size of our test data).
     pub fn from_file<P: AsRef<Path> + Copy>(path: P) -> Result<FsSurface> {
         let gz = is_gz_file(&path);
 
