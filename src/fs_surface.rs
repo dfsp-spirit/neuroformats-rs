@@ -119,7 +119,7 @@ impl BrainMesh {
         }
 
         for frow in self.faces.genrows() {
-            obj_repr.push(format!("f {} {} {}\n", frow[0], frow[1], frow[2]));
+            obj_repr.push(format!("f {} {} {}\n", frow[0]+1, frow[1]+1, frow[2]+1));
         }
         
         let obj_repr = obj_repr.join("");
@@ -136,12 +136,6 @@ pub fn read_surf<P: AsRef<Path> + Copy>(path: P) -> Result<FsSurface> {
 impl FsSurface {
     /// Read an FsSurface instance from a file.
     pub fn from_file<P: AsRef<Path> + Copy>(path: P) -> Result<FsSurface> {
-
-        
-
-        //println!("Hdr: magic = {}, {}, {}.", hdr.surf_magic[0], hdr.surf_magic[1], hdr.surf_magic[2]);
-        //println!("Hdr: info_line = {}.", hdr.info_line);
-        //println!("Hdr: num_v = {}, num_f = {}.", hdr.num_vertices, hdr.num_faces);
 
         let mut file = BufReader::new(File::open(path)?);
 
@@ -223,7 +217,11 @@ mod test {
         assert_eq!(3 * 3, surf.mesh.faces.len());
 
         let obj_repr: String = surf.mesh.to_obj();
-        assert_eq!(String::from("v 0.3 0.3 0.3\nv 0.3 0.3 0.3\nv 0.3 0.3 0.3\nv 0.3 0.3 0.3\nv 0.3 0.3 0.3\nf 0 1 3\nf 1 3 4\nf 2 2 2\n"), obj_repr);
+        assert_eq!(String::from("v 0.3 0.3 0.3\nv 0.3 0.3 0.3\nv 0.3 0.3 0.3\nv 0.3 0.3 0.3\nv 0.3 0.3 0.3\nf 1 2 4\nf 2 4 5\nf 3 3 3\n"), obj_repr);
+
+        // One could write the OBJ string to a file: 
+        //     use std::fs;
+        //     fs::write("/tmp/tinysurface.obj", obj_repr).expect("Unable to write file");
     }
 }
 
