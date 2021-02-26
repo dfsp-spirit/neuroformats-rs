@@ -223,7 +223,7 @@ mod test {
         assert_eq!(3 * 3, surf.mesh.faces.len());
 
         let obj_repr: String = surf.mesh.to_obj();
-        println!("OBJ: {}", obj_repr);
+        assert_eq!(String::from("v 0.3 0.3 0.3\nv 0.3 0.3 0.3\nv 0.3 0.3 0.3\nv 0.3 0.3 0.3\nv 0.3 0.3 0.3\nf 0 1 3\nf 1 3 4\nf 2 2 2\n"), obj_repr);
     }
 }
 
