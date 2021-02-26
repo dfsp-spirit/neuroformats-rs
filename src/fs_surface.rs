@@ -13,6 +13,9 @@ use std::path::{Path};
 use crate::util::is_gz_file;
 use crate::error::{NeuroformatsError, Result};
 
+
+use ndarray::{prelude::*};
+
 pub const TRIS_MAGIC_FILE_TYPE_NUMBER: i32 = 16777214;
 pub const TRIS_MAGIC_FILE_TYPE_NUMBER_ALTERNATIVE: i32 = 16777215;
 
@@ -101,8 +104,8 @@ pub struct FsSurface {
 // A Brain Mesh
 #[derive(Debug, PartialEq, Clone)]
 pub struct BrainMesh {
-    pub vertices: Vec<f32>,
-    pub faces: Vec<i32>, 
+    pub vertices: Array2<f32>,
+    pub faces: Array2<i32>, 
 }
 
 
@@ -153,19 +156,24 @@ impl FsSurface {
             hdr_data.push(input.read_u8().unwrap());
         }
 
-        let mut vertex_data : Vec<f32> = Vec::with_capacity((hdr.num_vertices * 3) as usize);
+        let num_vert_coords: i32 = hdr.num_vertices * 3;
+        let mut vertex_data : Vec<f32> = Vec::with_capacity(num_vert_coords as usize);
         for _ in 1..=hdr.num_vertices * 3 {
             vertex_data.push(input.read_f32().unwrap());
         }
+
+        let vertices = Array::from_shape_vec((hdr.num_vertices as usize, 3 as usize), vertex_data).unwrap();
 
         let mut face_data : Vec<i32> = Vec::with_capacity((hdr.num_faces * 3) as usize);
         for _ in 1..=hdr.num_faces * 3 {
             face_data.push(input.read_i32().unwrap());
         }
 
+        let faces = Array::from_shape_vec((hdr.num_faces as usize, 3 as usize), face_data).unwrap();
+
         let mesh = BrainMesh {
-            vertices : vertex_data,
-            faces : face_data
+            vertices : vertices,
+            faces : faces
         };
 
         mesh
