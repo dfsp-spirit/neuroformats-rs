@@ -4,17 +4,15 @@
 
 
 use byteordered::{ByteOrdered};
-use flate2::bufread::GzDecoder;
 
-use std::fs::File;
+use std::{fs::File};
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::{Path};
 
-use crate::util::is_gz_file;
 use crate::error::{NeuroformatsError, Result};
 
 
-use ndarray::{prelude::*};
+use ndarray::{Array, Array2};
 
 pub const TRIS_MAGIC_FILE_TYPE_NUMBER: i32 = 16777214;
 pub const TRIS_MAGIC_FILE_TYPE_NUMBER_ALTERNATIVE: i32 = 16777215;
@@ -44,15 +42,15 @@ impl FsSurfaceHeader {
     
     /// Read an FsSurface header from a file.
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<FsSurfaceHeader> {
-        let file = BufReader::new(File::open(path)?);
-        FsSurfaceHeader::from_reader(file)
+        let mut file = BufReader::new(File::open(path)?);
+        FsSurfaceHeader::from_reader(&mut file)
     }
 
 
     /// Read an FsSurface header from the given byte stream.
     /// It is assumed that the input is currently at the start of the
     /// FsSurface header.
-    pub fn from_reader<S>(input: S) -> Result<FsSurfaceHeader>
+    pub fn from_reader<S>(input: &mut S) -> Result<FsSurfaceHeader>
     where
         S: Read + Seek,
     {
@@ -67,6 +65,8 @@ impl FsSurfaceHeader {
             info_line.push(cur_char);            
         }
         input.seek(SeekFrom::Current(-1))?;
+
+        println!("pos at end of header = {}", input.seek(SeekFrom::Current(0))?);
     
         hdr.info_line = info_line;
         hdr.num_vertices = input.read_i32()?;
@@ -109,6 +109,25 @@ pub struct BrainMesh {
 }
 
 
+impl BrainMesh {
+    /// Export a brain mesh to a Wavefront Object (OBJ) string.
+    pub fn to_obj(&self) -> String {
+        let mut obj_repr = Vec::<String>::new();
+
+        for vrow in self.vertices.genrows() {
+            obj_repr.push(format!("v {} {} {}\n", vrow[0], vrow[1], vrow[2]));
+        }
+
+        for frow in self.faces.genrows() {
+            obj_repr.push(format!("f {} {} {}\n", frow[0], frow[1], frow[2]));
+        }
+        
+        let obj_repr = obj_repr.join("");
+        obj_repr
+    }
+
+}
+
 pub fn read_surf<P: AsRef<Path> + Copy>(path: P) -> Result<FsSurface> {
     FsSurface::from_file(path)
 }
@@ -117,18 +136,19 @@ pub fn read_surf<P: AsRef<Path> + Copy>(path: P) -> Result<FsSurface> {
 impl FsSurface {
     /// Read an FsSurface instance from a file.
     pub fn from_file<P: AsRef<Path> + Copy>(path: P) -> Result<FsSurface> {
-        let gz = is_gz_file(&path);
 
-        let hdr = FsSurfaceHeader::from_file(path).unwrap();
+        
 
-        println!("Hdr: magic = {}, {}, {}.", hdr.surf_magic[0], hdr.surf_magic[1], hdr.surf_magic[2]);
-        println!("Hdr: info_line = {}.", hdr.info_line);
-        println!("Hdr: num_v = {}, num_f = {}.", hdr.num_vertices, hdr.num_faces);
+        //println!("Hdr: magic = {}, {}, {}.", hdr.surf_magic[0], hdr.surf_magic[1], hdr.surf_magic[2]);
+        //println!("Hdr: info_line = {}.", hdr.info_line);
+        //println!("Hdr: num_v = {}, num_f = {}.", hdr.num_vertices, hdr.num_faces);
 
-        let file = BufReader::new(File::open(path)?);
+        let mut file = BufReader::new(File::open(path)?);
+
+        let hdr = FsSurfaceHeader::from_reader(&mut file).unwrap();
 
 
-        let mesh: BrainMesh = if gz { FsSurface::mesh_from_reader(GzDecoder::new(file), &hdr) } else  { FsSurface::mesh_from_reader(file, &hdr) };
+        let mesh: BrainMesh = FsSurface::mesh_from_reader(&mut file, &hdr);
 
         let surf = FsSurface { 
             header : hdr,
@@ -138,23 +158,17 @@ impl FsSurface {
         Ok(surf)
     }
 
-    pub fn mesh_from_reader<S>(input: S, hdr: &FsSurfaceHeader) -> BrainMesh
+    pub fn mesh_from_reader<S>(input: &mut S, hdr: &FsSurfaceHeader) -> BrainMesh
     where
-        S: Read,
+        S: Read + Seek,
     {
     
         let input = ByteOrdered::be(input);
 
-        let hdr_size = 3 + hdr.info_line.len() + 4 + 4;
-        
-
         let mut input = ByteOrdered::be(input);
 
-        // This is only read because we cannot seek in a GZ stream.
-        let mut hdr_data : Vec<u8> = Vec::with_capacity(hdr_size as usize);
-        for _ in 1..=hdr_size {
-            hdr_data.push(input.read_u8().unwrap());
-        }
+
+        println!("pos at start of data reading = {}", input.seek(SeekFrom::Current(0)).unwrap());
 
         let num_vert_coords: i32 = hdr.num_vertices * 3;
         let mut vertex_data : Vec<f32> = Vec::with_capacity(num_vert_coords as usize);
@@ -195,6 +209,21 @@ mod test {
     
         assert_eq!(149244 * 3, surf.mesh.vertices.len());
         assert_eq!(298484 * 3, surf.mesh.faces.len());
+    }
+
+    #[test]
+    fn the_tiny_demo_surf_file_can_be_exported_to_obj_format() {
+        const SURF_FILE: &str = "resources/subjects_dir/subject1/surf/lh.tinysurface";
+        let surf = read_surf(SURF_FILE).unwrap();
+
+        assert_eq!(5, surf.header.num_vertices);
+        assert_eq!(3, surf.header.num_faces);
+    
+        assert_eq!(5 * 3, surf.mesh.vertices.len());
+        assert_eq!(3 * 3, surf.mesh.faces.len());
+
+        let obj_repr: String = surf.mesh.to_obj();
+        println!("OBJ: {}", obj_repr);
     }
 }
 
