@@ -6,9 +6,10 @@
 use byteordered::{ByteOrdered};
 
 use std::{fs::File};
-use std::io::{BufReader, Read, Seek, SeekFrom};
+use std::io::{BufReader, Read, Seek};
 use std::path::{Path};
 
+use crate::util::read_variable_length_string;
 use crate::error::{NeuroformatsError, Result};
 
 
@@ -58,17 +59,7 @@ impl FsSurfaceHeader {
     
         let mut input = ByteOrdered::be(input);
 
-        let mut cur_char = input.read_u8()? as char;
-        let mut info_line = String::from(cur_char);
-        while cur_char != '\0' {
-            cur_char = input.read_u8()? as char;
-            info_line.push(cur_char);            
-        }
-        input.seek(SeekFrom::Current(-1))?;
-
-        println!("pos at end of header = {}", input.seek(SeekFrom::Current(0))?);
-    
-        hdr.info_line = info_line;
+        hdr.info_line = read_variable_length_string(&mut input);
         hdr.num_vertices = input.read_i32()?;
         hdr.num_faces = input.read_i32()?;
         
@@ -110,7 +101,7 @@ pub struct BrainMesh {
 
 
 impl BrainMesh {
-    /// Export a brain mesh to a Wavefront Object (OBJ) string.
+    /// Export a brain mesh to a Wavefront Object (OBJ) format string.
     pub fn to_obj(&self) -> String {
         let mut obj_repr = Vec::<String>::new();
 
@@ -160,9 +151,6 @@ impl FsSurface {
         let input = ByteOrdered::be(input);
 
         let mut input = ByteOrdered::be(input);
-
-
-        println!("pos at start of data reading = {}", input.seek(SeekFrom::Current(0)).unwrap());
 
         let num_vert_coords: i32 = hdr.num_vertices * 3;
         let mut vertex_data : Vec<f32> = Vec::with_capacity(num_vert_coords as usize);
