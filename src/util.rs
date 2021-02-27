@@ -4,6 +4,7 @@ use std::{path::Path};
 use std::io::{Read, Seek, SeekFrom};
 use byteordered::byteorder::ReadBytesExt;
 
+/// Check whether the file extension ends with ".gz".
 pub fn is_gz_file<P>(path: P) -> bool
 where
     P: AsRef<Path>,
@@ -30,3 +31,4 @@ pub fn read_variable_length_string<S>(input: &mut S) -> String
         info_line
     }
 
+    
