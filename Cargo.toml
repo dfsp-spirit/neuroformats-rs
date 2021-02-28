@@ -18,4 +18,4 @@ flate2 = "1.0"
 quick-error = "2.0"
 approx = "0.4"
 ndarray = "0.12.1"
-csv = "1.1"
+

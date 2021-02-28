@@ -1,13 +1,9 @@
 /// Functions for reading FreeSurfer label files.
 
-
-use csv::{ReaderBuilder};
-
 use std::fs::File;
-use std::io::{BufReader};
+use std::io::{BufRead, BufReader};
 use std::path::{Path};
 
-use std::error::Error;
 
 
 #[derive(Debug, Clone, PartialEq)]
@@ -20,31 +16,34 @@ pub struct FsLabel {
 }
 
 
+use std::error::Error;
+
 
 pub fn read_label<P: AsRef<Path>>(path: P) -> Result<FsLabel, Box<dyn Error>> {
 
-    let file = BufReader::new(File::open(path)?);
-    let mut rdr = ReaderBuilder::new()
-        .has_headers(false)
-        //.delimiter(b' ')
-        .flexible(true)
-        .comment(Some(b'#'))
-        .from_reader(file);
+    let reader = BufReader::new(File::open(path)?);
 
-    for result in rdr.records() {
-        // The iterator yields Result<StringRecord, Error>, so we check the
-        // error here.
-        let record = result?;
-        println!("{:?}", record);
-    }
-
-    let label = FsLabel {
+    let mut label = FsLabel {
         vertex_index : Vec::new(),
         coord1 : Vec::new(),
         coord2 : Vec::new(),
         coord3 : Vec::new(),
         value : Vec::new(),
     };
+
+    // Read the file line by line using the lines() iterator from std::io::BufRead.
+    for (index, line) in reader.lines().enumerate() {
+        if index >= 2 {
+            let line = line.unwrap();
+            let mut iter = line.split_whitespace();
+            label.vertex_index.push(iter.next().unwrap().parse::<i32>().unwrap());
+            label.coord1.push(iter.next().unwrap().parse::<f32>().unwrap());
+            label.coord2.push(iter.next().unwrap().parse::<f32>().unwrap());
+            label.coord3.push(iter.next().unwrap().parse::<f32>().unwrap());
+            label.value.push(iter.next().unwrap().parse::<f32>().unwrap());
+        }        
+
+    }
 
     Ok(label)
 }
