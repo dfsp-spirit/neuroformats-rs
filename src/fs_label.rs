@@ -23,13 +23,11 @@ pub struct FsLabel {
 
 pub fn read_label<P: AsRef<Path>>(path: P) -> Result<FsLabel, Box<dyn Error>> {
 
-    let mut file = BufReader::new(File::open(path)?);
+    let file = BufReader::new(File::open(path)?);
     let mut rdr = ReaderBuilder::new()
         .has_headers(false)
-        .delimiter(b';')
-        .double_quote(false)
-        .escape(Some(b'\\'))
-        .flexible(false)
+        //.delimiter(b' ')
+        .flexible(true)
         .comment(Some(b'#'))
         .from_reader(file);
 
@@ -51,3 +49,16 @@ pub fn read_label<P: AsRef<Path>>(path: P) -> Result<FsLabel, Box<dyn Error>> {
     Ok(label)
 }
 
+
+#[cfg(test)]
+mod test { 
+    use super::*;
+
+    #[test]
+    fn the_demo_surface_label_file_can_be_read() {
+        const LABEL_FILE: &str = "resources/subjects_dir/subject1/label/lh.entorhinal_exvivo.label";
+        let label = read_label(LABEL_FILE).unwrap();
+
+        assert_eq!(1085, label.vertex_index.len());
+    }
+}
