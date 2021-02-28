@@ -59,5 +59,9 @@ mod test {
         let label = read_label(LABEL_FILE).unwrap();
 
         assert_eq!(1085, label.vertex_index.len());
+        assert_eq!(1085, label.coord1.len());
+        assert_eq!(1085, label.coord2.len());
+        assert_eq!(1085, label.coord3.len());
+        assert_eq!(1085, label.value.len());
     }
 }
