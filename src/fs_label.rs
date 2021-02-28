@@ -5,6 +5,8 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path};
 
 
+use crate::error::{NeuroformatsError, Result};
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FsLabel {
@@ -16,10 +18,9 @@ pub struct FsLabel {
 }
 
 
-use std::error::Error;
 
 
-pub fn read_label<P: AsRef<Path>>(path: P) -> Result<FsLabel, Box<dyn Error>> {
+pub fn read_label<P: AsRef<Path>>(path: P) -> Result<FsLabel> {
 
     let reader = BufReader::new(File::open(path)?);
 
@@ -31,9 +32,16 @@ pub fn read_label<P: AsRef<Path>>(path: P) -> Result<FsLabel, Box<dyn Error>> {
         value : Vec::new(),
     };
 
+    let mut hdr_num_entries: i32 = 0;
+
     // Read the file line by line using the lines() iterator from std::io::BufRead.
     for (index, line) in reader.lines().enumerate() {
-        if index >= 2 {
+        // We ignore the first line at index 0: it is a comment line.
+        
+        if index == 1 {
+            hdr_num_entries = line.unwrap().parse::<i32>().unwrap();
+        }
+        else if index >= 2 {
             let line = line.unwrap();
             let mut iter = line.split_whitespace();
             label.vertex_index.push(iter.next().unwrap().parse::<i32>().unwrap());
@@ -42,10 +50,13 @@ pub fn read_label<P: AsRef<Path>>(path: P) -> Result<FsLabel, Box<dyn Error>> {
             label.coord3.push(iter.next().unwrap().parse::<f32>().unwrap());
             label.value.push(iter.next().unwrap().parse::<f32>().unwrap());
         }        
-
     }
 
-    Ok(label)
+    if hdr_num_entries as usize != label.vertex_index.len() {
+        Err(NeuroformatsError::InvalidFsLabelFormat)
+    } else {
+        Ok(label)
+    }
 }
 
 

@@ -14,6 +14,10 @@ quick_error! {
             display("Invalid FreeSurfer surf file")
         }
 
+        InvalidFsLabelFormat {
+            display("Invalid FreeSurfer label file")
+        }
+
         /// I/O Error
         Io(err: IOError) {
             from()
