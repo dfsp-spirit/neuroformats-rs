@@ -1,6 +1,8 @@
-// Functions for managing FreeSurfer brain surface meshes in binary 'surf' files.
-// These files store a triangular mesh, where each vertex if defined by its x,y,z coord and 
-// each face is defined by 3 vertices, stored as 3 indices into the vertices.
+//! Functions for managing FreeSurfer brain surface meshes in binary 'surf' files.
+//!
+//! These files store a triangular mesh, where each vertex is defined by its x,y,z coords and 
+//! each face is defined by 3 vertices, stored as 3 row-indices into the vertices matrix.
+//! These vertex indices are zero-based.
 
 
 use byteordered::{ByteOrdered};
@@ -18,7 +20,7 @@ use ndarray::{Array, Array2};
 pub const TRIS_MAGIC_FILE_TYPE_NUMBER: i32 = 16777214;
 pub const TRIS_MAGIC_FILE_TYPE_NUMBER_ALTERNATIVE: i32 = 16777215;
 
-
+/// Models the header of a FreeSurfer surf file containing a brain mesh.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FsSurfaceHeader {
     pub surf_magic: [u8; 3],
@@ -39,6 +41,7 @@ impl Default for FsSurfaceHeader {
     }
 }
 
+/// The header of a FreeSurfer brain mesh file in surf format.
 impl FsSurfaceHeader {
     
     /// Read an FsSurface header from a file.
@@ -85,14 +88,14 @@ pub fn interpret_fs_int24(b1: u8, b2:u8, b3:u8) -> i32 {
 }
 
 
-// An FsSurface object
+/// An FsSurface object, models the contents (header and data) of a FreeSurfer surf file.
 #[derive(Debug, PartialEq, Clone)]
 pub struct FsSurface {
     pub header: FsSurfaceHeader,
     pub mesh: BrainMesh, 
 }
 
-// A Brain Mesh
+/// A brain mesh, or any other triangular mesh. Vertices are stored as an `nx3` matrix of x,y,z coordinates. The triangular faces are stored as an `mx3` matrix of vertex indices.
 #[derive(Debug, PartialEq, Clone)]
 pub struct BrainMesh {
     pub vertices: Array2<f32>,
@@ -119,6 +122,8 @@ impl BrainMesh {
 
 }
 
+
+/// Read an FsSurface instance from a file.
 pub fn read_surf<P: AsRef<Path> + Copy>(path: P) -> Result<FsSurface> {
     FsSurface::from_file(path)
 }
@@ -143,6 +148,8 @@ impl FsSurface {
         Ok(surf)
     }
 
+
+    /// Read a brain mesh, i.e., the data part of an FsSurface instance, from a reader.
     pub fn mesh_from_reader<S>(input: &mut S, hdr: &FsSurfaceHeader) -> BrainMesh
     where
         S: Read + Seek,

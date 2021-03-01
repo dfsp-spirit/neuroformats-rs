@@ -1,6 +1,7 @@
-// Functions for managing FreeSurfer per-vertex data in binary 'curv' files.
-// These files store 1 scalar value (typically a morphological descriptor, like cortical thickness at that point)
-// for each vertex of the respective brain surface mesh.
+//! Functions for managing FreeSurfer per-vertex data in binary 'curv' files.
+//!
+//! These files store 1 scalar value (typically a morphological descriptor, like cortical thickness at that point)
+//! for each vertex of the respective brain surface mesh.
 
 
 use byteordered::{ByteOrdered};

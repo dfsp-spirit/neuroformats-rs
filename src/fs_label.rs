@@ -1,4 +1,9 @@
-/// Functions for reading FreeSurfer label files.
+//! Functions for reading FreeSurfer label files.
+//!
+//! A label groups a number of vertices (for surface label) or voxels (for volume labels) together. E.g., all
+//! vertices which are part of a certain brain region can be stored in a label. Note though that nothing requires that the
+//! vertices of a label form a spatially adjacent patch. Each vertex or voxel can be assigned a scalar value.
+
 
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -19,7 +24,9 @@ pub struct FsLabel {
 
 
 
-
+/// Read a surface label or volume label from a file in FreeSurfer label format.
+///
+///
 pub fn read_label<P: AsRef<Path>>(path: P) -> Result<FsLabel> {
 
     let reader = BufReader::new(File::open(path)?);
@@ -69,10 +76,11 @@ mod test {
         const LABEL_FILE: &str = "resources/subjects_dir/subject1/label/lh.entorhinal_exvivo.label";
         let label = read_label(LABEL_FILE).unwrap();
 
-        assert_eq!(1085, label.vertex_index.len());
-        assert_eq!(1085, label.coord1.len());
-        assert_eq!(1085, label.coord2.len());
-        assert_eq!(1085, label.coord3.len());
-        assert_eq!(1085, label.value.len());
+        let expected_vertex_count: usize = 1085;
+        assert_eq!(expected_vertex_count, label.vertex_index.len());
+        assert_eq!(expected_vertex_count, label.coord1.len());
+        assert_eq!(expected_vertex_count, label.coord2.len());
+        assert_eq!(expected_vertex_count, label.coord3.len());
+        assert_eq!(expected_vertex_count, label.value.len());
     }
 }
