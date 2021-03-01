@@ -93,13 +93,13 @@ pub struct FsCurv {
 ///
 /// A curv file assigns a single scalar value to each vertex of a brain mesh. These values can represent
 /// anything, but the files are typically used to store morphological descriptors like the cortical thickness
-/// at each point of the brain surface, or statistical results like t value maps. See [`crate::read_surf`] to load
+/// at each point of the brain surface, or statistical results like t value maps. See [`neuroformats::read_surf`] to load
 /// the corresponding mesh file. 
 ///
 /// # Examples
 ///
 /// ```no_run
-/// let curv = read_curv("/path/to/subjects_dir/subject1/surf/lh.thickness");
+/// let curv = neuroformats::read_curv("/path/to/subjects_dir/subject1/surf/lh.thickness");
 /// ```
 pub fn read_curv<P: AsRef<Path> + Copy>(path: P) -> Result<FsCurv> {
     FsCurv::from_file(path)

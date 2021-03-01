@@ -32,7 +32,7 @@ pub struct FsLabel {
 /// # Examples
 ///
 /// ```no_run
-/// let label = read_label("/path/to/subjects_dir/subject1/label/lh.entorhinal_exvivo.label");
+/// let label = neuroformats::read_label("/path/to/subjects_dir/subject1/label/lh.entorhinal_exvivo.label");
 /// ```
 pub fn read_label<P: AsRef<Path>>(path: P) -> Result<FsLabel> {
 
