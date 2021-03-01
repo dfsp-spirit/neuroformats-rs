@@ -5,7 +5,7 @@ This crate provides access to structural neuroimaging data in Rust by implementi
 
 ## Installation
 
-This is work in progress, come back another day.
+This is work in progress, come back another day. It will be available on [crates.io](https://crates.io) once a first version is ready.
 
 ## Features
 
