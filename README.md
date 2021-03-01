@@ -9,8 +9,10 @@ This is work in progress, come back another day.
 
 ## Features
 
-* Read FreeSurfer per-vertex data in curv format (like `subject/surf/lh.thickness`): function `read_curv()`
-* Read brain meshes in FreeSurfer binary mesh format (like `subject/surf/lh.white`): `read_surf()`
+* Read FreeSurfer per-vertex data in curv format (like `subject/surf/lh.thickness`): function `neuroformats::read_curv`
+* Read brain meshes in FreeSurfer binary mesh format (like `subject/surf/lh.white`): `neuroformats::read_surf`
+* Read FreeSurfer label files (like `subject/label/lh.cortex.label`): `neuroformats::read_label`
+* Read FreeSurfer brain surface parcellations (like `subject/label/lh.aparc.annot`): `neuroformats::read_annot`
 
 
 ## Usage example
