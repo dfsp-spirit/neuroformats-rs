@@ -1,6 +1,6 @@
 //! Rust implementation of several structural neuroimaging file formats.
 //!
-//! The focus of this package is on surface-based MRI data as produced by FreeSurfer.
+//! The focus of this package is on reading surface-based brain morphometry data as produced from MRI images by FreeSurfer, CAT12 and similar software packages.
 
 
 #[cfg(test)]
