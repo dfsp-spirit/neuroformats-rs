@@ -31,4 +31,16 @@ pub fn read_variable_length_string<S>(input: &mut S) -> String
         info_line
     }
 
-    
+
+/// Read a fixed length byte string from the input.
+pub fn read_fixed_length_string<S>(input: &mut S, len: usize) -> String
+where
+    S: Read,
+{
+    let mut info_line = String::with_capacity(len);
+    for _  in 0..len   {
+        info_line.push(input.read_u8().unwrap() as char);            
+    }
+    info_line
+}
+

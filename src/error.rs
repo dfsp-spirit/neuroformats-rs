@@ -18,6 +18,10 @@ quick_error! {
             display("Invalid FreeSurfer label file")
         }
 
+        UnsupportedFsAnnotFormatVersion {
+            display("Unsupported FreeSurfer annot file format version")
+        }
+
         /// I/O Error
         Io(err: IOError) {
             from()

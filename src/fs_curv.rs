@@ -128,18 +128,16 @@ impl FsCurv {
         Ok(curv)
     }
 
+
     pub fn curv_data_from_reader<S>(input: S, hdr: &CurvHeader) -> Vec<f32>
     where
         S: Read,
     {
     
-        let input = ByteOrdered::be(input);
+        let mut input = ByteOrdered::be(input);
 
         let hdr_size = 15;
         
-
-        let mut input = ByteOrdered::be(input);
-
         // This is only read because we cannot seek in a GZ stream.
         let mut hdr_data : Vec<u8> = Vec::with_capacity(hdr_size as usize);
         for _ in 1..=hdr_size {
