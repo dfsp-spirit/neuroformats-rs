@@ -124,6 +124,14 @@ impl BrainMesh {
 
 
 /// Read an FsSurface instance from a file.
+///
+/// See [`crate::read_curv`] to read per-vertex data for the mesh.
+///
+/// # Examples
+///
+/// ```no_run
+/// let surf = read_surf("/path/to/subjects_dir/subject1/surf/lh.white");
+/// ```
 pub fn read_surf<P: AsRef<Path> + Copy>(path: P) -> Result<FsSurface> {
     FsSurface::from_file(path)
 }

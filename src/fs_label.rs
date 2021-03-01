@@ -26,7 +26,14 @@ pub struct FsLabel {
 
 /// Read a surface label or volume label from a file in FreeSurfer label format.
 ///
+/// A label groups a number of vertices (for surface label) or voxels (for volume labels) together. It can
+/// also assign a scalar value to each element.
 ///
+/// # Examples
+///
+/// ```no_run
+/// let label = read_label("/path/to/subjects_dir/subject1/label/lh.entorhinal_exvivo.label");
+/// ```
 pub fn read_label<P: AsRef<Path>>(path: P) -> Result<FsLabel> {
 
     let reader = BufReader::new(File::open(path)?);

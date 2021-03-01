@@ -82,20 +82,32 @@ impl CurvHeader {
 }
 
 
-// An FsCurv object
+/// An FsCurv object, models a FreeSurfer per-vertex data file in curv format.
 #[derive(Debug, PartialEq, Clone)]
 pub struct FsCurv {
     pub header: CurvHeader,
     pub data: Vec<f32>, 
 }
 
+/// Read per-vertex data from a FreeSurfer curv file.
+///
+/// A curv file assigns a single scalar value to each vertex of a brain mesh. These values can represent
+/// anything, but the files are typically used to store morphological descriptors like the cortical thickness
+/// at each point of the brain surface, or statistical results like t value maps. See [`crate::read_surf`] to load
+/// the corresponding mesh file. 
+///
+/// # Examples
+///
+/// ```no_run
+/// let curv = read_curv("/path/to/subjects_dir/subject1/surf/lh.thickness");
+/// ```
 pub fn read_curv<P: AsRef<Path> + Copy>(path: P) -> Result<FsCurv> {
     FsCurv::from_file(path)
 }
 
 
 impl FsCurv {
-    /// Read a Curv header from a file.
+    /// Read a Curvfile.
     /// If the file's name ends with ".gz", the file is assumed to need GZip decoding. This is not typically the case
     /// for FreeSurfer Curv files, but very handy (and it helps us to reduce the size of our test data).
     pub fn from_file<P: AsRef<Path> + Copy>(path: P) -> Result<FsCurv> {
