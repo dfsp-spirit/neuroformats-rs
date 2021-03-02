@@ -141,6 +141,17 @@ pub fn read_annot<P: AsRef<Path> + Copy>(path: P) -> Result<FsAnnot> {
 }
 
 
+/// Get the region names contained in an FsAnnot struct.
+/// # Examples
+///
+/// ```no_run
+/// let annot = neuroformats::read_annot("/path/to/subjects_dir/subject1/label/lh.aparc.annot").unwrap();
+/// neuroformats::annot_regions(&annot);
+/// ```
+pub fn annot_regions(annot: &FsAnnot) -> Vec<String> {
+    let region_names = annot.colortable.name.clone();
+    region_names
+}
 
 
 #[cfg(test)]
@@ -162,5 +173,16 @@ mod test {
         assert_eq!(36, annot.colortable.b.len());
         assert_eq!(36, annot.colortable.a.len());
         assert_eq!(36, annot.colortable.label.len());
+    }
+
+    #[test]
+    fn annot_region_names_are_read_correctly() {
+        const ANNOT_FILE: &str = "resources/subjects_dir/subject1/label/lh.aparc.annot";
+        let annot = read_annot(ANNOT_FILE).unwrap();
+        let regions : Vec<String> = annot_regions(&annot);
+
+        assert_eq!(regions[0], "unknown");
+        assert_eq!(regions[1], "bankssts");
+        assert_eq!(regions[35], "insula");
     }
 }
