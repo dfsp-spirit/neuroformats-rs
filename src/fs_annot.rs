@@ -55,7 +55,7 @@ impl FsAnnotColortable {
             b.push(input.read_i32()?);
             a.push(input.read_i32()?);
 
-            label.push(r[idx] + g[idx]*2^8 + b[idx]*2^16 + a[idx]*2^24);
+            label.push(r[idx] + g[idx]*(2 as i32).pow(8) + b[idx]*(2 as i32).pow(16) + a[idx]*(2 as i32).pow(24));
         }
 
         let ct = FsAnnotColortable { 
