@@ -160,7 +160,7 @@ impl FsSurface {
     /// Read a brain mesh, i.e., the data part of an FsSurface instance, from a reader.
     pub fn mesh_from_reader<S>(input: &mut S, hdr: &FsSurfaceHeader) -> BrainMesh
     where
-        S: Read + Seek,
+        S: Read,
     {
     
         let mut input = ByteOrdered::be(input);
