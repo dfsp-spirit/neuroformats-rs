@@ -1,4 +1,4 @@
-
+//! Utility functions used in all other neuroformats modules.
 
 use std::{path::Path};
 use std::io::{Read, Seek, SeekFrom};

@@ -1,3 +1,6 @@
+//! Errors one may encounter when using neuroformats.
+
+
 use quick_error::quick_error;
 use std::io::Error as IOError;
 
