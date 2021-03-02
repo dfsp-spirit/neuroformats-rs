@@ -125,7 +125,7 @@ impl BrainMesh {
 
 /// Read an FsSurface instance from a file.
 ///
-/// See [`neuroformats::read_curv`] to read per-vertex data for the mesh.
+/// See [`crate::read_curv`] to read per-vertex data for the mesh.
 ///
 /// # Examples
 ///
