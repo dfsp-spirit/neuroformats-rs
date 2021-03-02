@@ -154,6 +154,36 @@ pub fn annot_regions(annot: &FsAnnot) -> Vec<String> {
 }
 
 
+/// Get the indices of all vertices which are part of the given brain region of the [`FsAnnot`] struct.
+///
+/// Noe that it can happen that no vertices are assigned to the region, in which case the result vecotr is empty.
+///
+/// # Panics
+///
+/// If the given `region` is not a valid region name for the `annot`.
+///
+/// # Examples
+///
+/// ```no_run
+/// let annot = neuroformats::read_annot("/path/to/subjects_dir/subject1/label/lh.aparc.annot").unwrap();
+/// neuroformats::region_vertices(&annot, String::from("bankssts"));
+/// ```
+pub fn region_vertices(annot: &FsAnnot, region : String) -> Vec<usize> {
+    let region_idx = annot.colortable.name.iter().position(|x| *x == region).expect("No such region in annot.");
+    let region_label = annot.colortable.label[region_idx];
+
+    println!("Looking for region {} named {} with label code {}.", region_idx, region, region_label);
+
+    let mut region_verts : Vec<usize> = Vec::new();
+    for (idx, vlabel) in annot.vertex_labels.iter().enumerate() {
+        if vlabel == &region_label {
+            region_verts.push(idx);
+        }
+    }
+    region_verts
+}
+
+
 #[cfg(test)]
 mod test { 
     use super::*;
@@ -173,6 +203,14 @@ mod test {
         assert_eq!(36, annot.colortable.b.len());
         assert_eq!(36, annot.colortable.a.len());
         assert_eq!(36, annot.colortable.label.len());
+
+        assert_eq!(0, annot.colortable.id[0]);
+        assert_eq!("unknown", annot.colortable.name[0]);
+        assert_eq!(0, annot.colortable.r[0]);
+        assert_eq!(0, annot.colortable.g[0]);
+        assert_eq!(0, annot.colortable.b[0]);
+        assert_eq!(0, annot.colortable.a[0]);
+        assert_eq!(0, annot.colortable.label[0]);
     }
 
     #[test]
@@ -184,5 +222,14 @@ mod test {
         assert_eq!(regions[0], "unknown");
         assert_eq!(regions[1], "bankssts");
         assert_eq!(regions[35], "insula");
+    }
+
+    #[test]
+    fn annot_region_vertices_are_computed_correctly() {
+        const ANNOT_FILE: &str = "resources/subjects_dir/subject1/label/lh.aparc.annot";
+        let annot = read_annot(ANNOT_FILE).unwrap();
+        let region_verts : Vec<usize> = region_vertices(&annot, String::from("bankssts"));
+
+        assert_eq!(1722, region_verts.len());
     }
 }

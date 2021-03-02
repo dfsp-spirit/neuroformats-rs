@@ -17,6 +17,6 @@ pub mod fs_annot;
 pub use fs_curv::{CurvHeader, FsCurv, read_curv};
 pub use fs_surface::{FsSurfaceHeader, FsSurface, BrainMesh, read_surf};
 pub use fs_label::{FsLabel, read_label};
-pub use fs_annot::{FsAnnot, FsAnnotColortable, read_annot, annot_regions};
+pub use fs_annot::{FsAnnot, FsAnnotColortable, read_annot, annot_regions, region_vertices};
 
 
