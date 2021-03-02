@@ -206,11 +206,11 @@ mod test {
 
         assert_eq!(0, annot.colortable.id[0]);
         assert_eq!("unknown", annot.colortable.name[0]);
-        assert_eq!(0, annot.colortable.r[0]);
-        assert_eq!(0, annot.colortable.g[0]);
-        assert_eq!(0, annot.colortable.b[0]);
+        assert_eq!(25, annot.colortable.r[0]);
+        assert_eq!(5, annot.colortable.g[0]);
+        assert_eq!(25, annot.colortable.b[0]);
         assert_eq!(0, annot.colortable.a[0]);
-        assert_eq!(0, annot.colortable.label[0]);
+        assert_eq!(1639705, annot.colortable.label[0]);
     }
 
     #[test]
