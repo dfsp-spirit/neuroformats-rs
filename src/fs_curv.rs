@@ -18,7 +18,7 @@ use crate::error::{NeuroformatsError, Result};
 pub const CURV_MAGIC_CODE_U8: u8 = 255;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct CurvHeader {
+pub struct FsCurvHeader {
     pub curv_magic: [u8; 3],
     pub num_vertices: i32,
     pub num_faces: i32,
@@ -26,9 +26,9 @@ pub struct CurvHeader {
 }
 
 
-impl Default for CurvHeader {
-    fn default() -> CurvHeader {
-        CurvHeader {
+impl Default for FsCurvHeader {
+    fn default() -> FsCurvHeader {
+        FsCurvHeader {
             curv_magic: [255; 3],
             num_vertices: 0,
             num_faces: 0,
@@ -37,18 +37,18 @@ impl Default for CurvHeader {
     }
 }
 
-impl CurvHeader {
+impl FsCurvHeader {
     
     /// Read a Curv header from a file.
     /// If the file's name ends with ".gz", the file is assumed to need GZip decoding. This is not typically the case
     /// for FreeSurfer Curv files, but very handy (and it helps us to reduce the size of our test data).
-    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<CurvHeader> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<FsCurvHeader> {
         let gz = is_gz_file(&path);
         let file = BufReader::new(File::open(path)?);
         if gz {
-            CurvHeader::from_reader(GzDecoder::new(file))
+            FsCurvHeader::from_reader(GzDecoder::new(file))
         } else {
-            CurvHeader::from_reader(file)
+            FsCurvHeader::from_reader(file)
         }
     }
 
@@ -56,11 +56,11 @@ impl CurvHeader {
     /// Read a Curv header from the given byte stream.
     /// It is assumed that the input is currently at the start of the
     /// Curv header.
-    pub fn from_reader<S>(input: S) -> Result<CurvHeader>
+    pub fn from_reader<S>(input: S) -> Result<FsCurvHeader>
     where
         S: Read,
     {
-        let mut hdr = CurvHeader::default();
+        let mut hdr = FsCurvHeader::default();
     
         let mut input = ByteOrdered::be(input);
 
@@ -85,7 +85,7 @@ impl CurvHeader {
 /// An FsCurv object, models a FreeSurfer per-vertex data file in curv format.
 #[derive(Debug, PartialEq, Clone)]
 pub struct FsCurv {
-    pub header: CurvHeader,
+    pub header: FsCurvHeader,
     pub data: Vec<f32>, 
 }
 
@@ -113,7 +113,7 @@ impl FsCurv {
     pub fn from_file<P: AsRef<Path> + Copy>(path: P) -> Result<FsCurv> {
         let gz = is_gz_file(&path);
 
-        let hdr = CurvHeader::from_file(path).unwrap();
+        let hdr = FsCurvHeader::from_file(path).unwrap();
 
         let file = BufReader::new(File::open(path)?);
 
@@ -129,7 +129,7 @@ impl FsCurv {
     }
 
 
-    pub fn curv_data_from_reader<S>(input: S, hdr: &CurvHeader) -> Vec<f32>
+    pub fn curv_data_from_reader<S>(input: S, hdr: &FsCurvHeader) -> Vec<f32>
     where
         S: Read,
     {
