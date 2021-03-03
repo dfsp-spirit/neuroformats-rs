@@ -5,7 +5,15 @@ This crate provides access to structural neuroimaging data in Rust by implementi
 
 ## Installation
 
-This is work in progress, come back another day. It will be available on [crates.io](https://crates.io) once a first version is ready.
+A very early version of the `neuroformats` crate is now on [crates.io](https://crates.io/crates/neuroformats).
+
+To use the library in your project, add it as a dependency in your `Cargo.toml` file, e.g.:
+
+```toml
+...
+[dependencies]
+neuroformats = "0.1.0"
+```
 
 ## Features
 
@@ -35,4 +43,6 @@ Continuous integration results:
 
 [![Build Status](https://travis-ci.org/dfsp-spirit/neuroformats-rs.svg?branch=main)](https://travis-ci.org/dfsp-spirit/neuroformats-rs) Travis CI under Linux
 
-[![codecov](https://codecov.io/gh/dfsp-spirit/neuroformats-rs/branch/main/graph/badge.svg?token=VESCG8GQ9K)](https://codecov.io/gh/dfsp-spirit/neuroformats-rs)
+### LICENSE
+
+The `neuroformats` crate is free software, dual-licensed under the [MIT](./LICENSE-MIT) or [APACHE-2](./LICENSE-APACHE2) licenses.
