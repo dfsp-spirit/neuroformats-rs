@@ -10,7 +10,6 @@ A very early version of the `neuroformats` crate is now on [crates.io](https://c
 To use the library in your project, add it as a dependency in your `Cargo.toml` file, e.g.:
 
 ```toml
-...
 [dependencies]
 neuroformats = "0.1.0"
 ```
@@ -57,6 +56,6 @@ The `neuroformats` crate is free software, dual-licensed under the [MIT](./LICEN
 
 ### Help and contact
 
-If you have trouble or found a bug, please open an issue here on Github.
+If you have trouble or found a bug, please [open an issue](https://github.com/dfsp-spirit/neuroformats-rs/issues) here on Github.
 
 The `neuroformats` crate was written by [Tim Schäfer](http://rcmd.org/ts/). You can find my email address on my website if you need to contact me in person.
