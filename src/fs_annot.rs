@@ -49,7 +49,7 @@ impl FsAnnotColortable {
         for idx in 0..num_colortable_entries as usize {
             id.push(input.read_i32()?);
             let num_chars_region_name: i32 = input.read_i32()?; // Length of following string.
-            name.push(read_fixed_length_string(&mut input, num_chars_region_name as usize));
+            name.push(read_fixed_length_string(&mut input, num_chars_region_name as usize)?);
             r.push(input.read_i32()?);
             g.push(input.read_i32()?);
             b.push(input.read_i32()?);

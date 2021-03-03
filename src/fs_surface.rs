@@ -62,7 +62,7 @@ impl FsSurfaceHeader {
     
         let mut input = ByteOrdered::be(input);
 
-        hdr.info_line = read_variable_length_string(&mut input);
+        hdr.info_line = read_variable_length_string(&mut input)?;
         hdr.num_vertices = input.read_i32()?;
         hdr.num_faces = input.read_i32()?;
         
