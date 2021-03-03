@@ -23,7 +23,13 @@ neuroformats = "0.1.0"
 * Read FreeSurfer brain surface parcellations (like `subject/label/lh.aparc.annot`): `neuroformats::read_annot`
 
 
-## Usage example
+## Documentation
+
+### API docs
+
+The `neuroformats` API docs can be found at [docs.rs/neuroformats](https://docs.rs/neuroformats).
+
+### Usage example
 
 Read vertex-wise cortical thickness computed by FreeSurfer:
 
@@ -33,6 +39,8 @@ curv = read_curv("subjects_dir/subject1/surf/lh.thickness");
 ```
 
 You now have a `Vec<f32>` with the cortical thickness values in `curv.data`. The order of the values matches the vertex order of the respective brain surface reconstruction (e.g., the white surface mesh of the left brain hemisphere in `subjects_dir/subject1/surf/lh.white`).
+
+See the [neuroformats API docs](https://docs.rs/neuroformats) for more examples.
 
 
 ## Development
@@ -46,3 +54,9 @@ Continuous integration results:
 ### LICENSE
 
 The `neuroformats` crate is free software, dual-licensed under the [MIT](./LICENSE-MIT) or [APACHE-2](./LICENSE-APACHE2) licenses.
+
+### Help and contact
+
+If you have trouble or found a bug, please open an issue here on Github.
+
+The `neuroformats` crate was written by [Tim Schäfer](http://rcmd.org/ts/). You can find my email address on my website if you need to contact me in person.
