@@ -121,6 +121,12 @@ impl BrainMesh {
     }
 
     /// Read a brain mesh from a Wavefront object format (.obj) mesh file.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// let mesh = neuroformats::BrainMesh::from_obj_file("resources/mesh/cube.obj").unwrap();
+    /// assert_eq!(24, mesh.vertices.len());
+    /// ```
     pub fn from_obj_file<P: AsRef<Path>>(path: P) -> Result<BrainMesh> {
     
         let reader = BufReader::new(File::open(path)?);
@@ -274,6 +280,18 @@ mod test {
         // One could write the OBJ string to a file: 
         //     use std::fs;
         //     fs::write("/tmp/tinysurface.obj", obj_repr).expect("Unable to write file");
+    }
+
+    #[test]
+    fn an_obj_file_can_be_parsed_into_a_brainmesh() {
+        const OBJ_FILE: &str = "resources/mesh/cube.obj";
+        let mesh = BrainMesh::from_obj_file(OBJ_FILE).unwrap();
+
+        let known_vertex_count = 8;
+        let known_face_count = 12;
+
+        assert_eq!(known_vertex_count * 3, mesh.vertices.len());
+        assert_eq!(known_face_count * 3, mesh.faces.len());
     }
 }
 
