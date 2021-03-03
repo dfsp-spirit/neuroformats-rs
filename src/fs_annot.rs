@@ -121,6 +121,71 @@ impl FsAnnot {
             Err(NeuroformatsError::UnsupportedFsAnnotFormatVersion)
         }
     }
+
+    /// Get the region names contained in an FsAnnot struct.
+    /// # Examples
+    ///
+    /// ```no_run
+    /// let annot = neuroformats::read_annot("/path/to/subjects_dir/subject1/label/lh.aparc.annot").unwrap();
+    /// annot.regions();
+    /// ```
+    pub fn regions(&self) -> Vec<String> {
+        let region_names = self.colortable.name.clone();
+        region_names
+    }
+
+
+    /// Get the indices of all vertices which are part of the given brain region of the [`FsAnnot`] struct.
+    ///
+    /// Note that it can happen that no vertices are assigned to the region, in which case the result vecotr is empty.
+    ///
+    /// # Panics
+    ///
+    /// If the given `region` is not a valid region name for the `annot`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// let annot = neuroformats::read_annot("/path/to/subjects_dir/subject1/label/lh.aparc.annot").unwrap();
+    /// annot.region_vertices(String::from("bankssts"));
+    /// ```
+    pub fn region_vertices(&self, region : String) -> Vec<usize> {
+        let region_idx = self.colortable.name.iter().position(|x| *x == region).expect("No such region in annot.");
+        let region_label = self.colortable.label[region_idx];
+
+        let mut region_verts : Vec<usize> = Vec::new();
+        for (idx, vlabel) in self.vertex_labels.iter().enumerate() {
+            if vlabel == &region_label {
+                region_verts.push(idx);
+            }
+        }
+        region_verts
+    }
+
+
+    /// Get the region names for all annot vertices.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// let annot = neuroformats::read_annot("/path/to/subjects_dir/subject1/label/lh.aparc.annot").unwrap();
+    /// annot.vertex_regions();
+    /// ```
+    pub fn vertex_regions(&self) -> Vec<String> {
+        let mut vert_regions: Vec<String> = Vec::with_capacity(self.vertex_labels.len());
+        for region in self.colortable.name.clone() {
+            let region_idx = self.colortable.name.iter().position(|x| *x == region).expect("No such region in annot.");
+            let region_label = self.colortable.label[region_idx];
+            let region_name = self.colortable.name[region_idx].clone();
+            for (idx, vlabel) in self.vertex_labels.iter().enumerate() {
+                if vlabel == &region_label {
+                    vert_regions[idx] = region_name.clone();
+                }
+            }
+        }
+        return vert_regions;
+    }
+
 }
 
 
@@ -139,72 +204,6 @@ impl FsAnnot {
 pub fn read_annot<P: AsRef<Path> + Copy>(path: P) -> Result<FsAnnot> {
     FsAnnot::from_file(path)
 }
-
-
-/// Get the region names contained in an FsAnnot struct.
-/// # Examples
-///
-/// ```no_run
-/// let annot = neuroformats::read_annot("/path/to/subjects_dir/subject1/label/lh.aparc.annot").unwrap();
-/// neuroformats::annot_regions(&annot);
-/// ```
-pub fn annot_regions(annot: &FsAnnot) -> Vec<String> {
-    let region_names = annot.colortable.name.clone();
-    region_names
-}
-
-
-/// Get the indices of all vertices which are part of the given brain region of the [`FsAnnot`] struct.
-///
-/// Note that it can happen that no vertices are assigned to the region, in which case the result vecotr is empty.
-///
-/// # Panics
-///
-/// If the given `region` is not a valid region name for the `annot`.
-///
-/// # Examples
-///
-/// ```no_run
-/// let annot = neuroformats::read_annot("/path/to/subjects_dir/subject1/label/lh.aparc.annot").unwrap();
-/// neuroformats::region_vertices(&annot, String::from("bankssts"));
-/// ```
-pub fn region_vertices(annot: &FsAnnot, region : String) -> Vec<usize> {
-    let region_idx = annot.colortable.name.iter().position(|x| *x == region).expect("No such region in annot.");
-    let region_label = annot.colortable.label[region_idx];
-
-    let mut region_verts : Vec<usize> = Vec::new();
-    for (idx, vlabel) in annot.vertex_labels.iter().enumerate() {
-        if vlabel == &region_label {
-            region_verts.push(idx);
-        }
-    }
-    region_verts
-}
-
-
-/// Get the region names for all annot vertices.
-///
-/// # Examples
-///
-/// ```no_run
-/// let annot = neuroformats::read_annot("/path/to/subjects_dir/subject1/label/lh.aparc.annot").unwrap();
-/// neuroformats::vertex_regions(&annot);
-/// ```
-pub fn vertex_regions(annot: &FsAnnot) -> Vec<String> {
-    let mut vert_regions: Vec<String> = Vec::with_capacity(annot.vertex_labels.len());
-    for region in annot.colortable.name.clone() {
-        let region_idx = annot.colortable.name.iter().position(|x| *x == region).expect("No such region in annot.");
-        let region_label = annot.colortable.label[region_idx];
-        let region_name = annot.colortable.name[region_idx].clone();
-        for (idx, vlabel) in annot.vertex_labels.iter().enumerate() {
-            if vlabel == &region_label {
-                vert_regions[idx] = region_name.clone();
-            }
-        }
-    }
-    return vert_regions;
-}
-
 
 #[cfg(test)]
 mod test { 
@@ -239,7 +238,7 @@ mod test {
     fn annot_region_names_are_read_correctly() {
         const ANNOT_FILE: &str = "resources/subjects_dir/subject1/label/lh.aparc.annot";
         let annot = read_annot(ANNOT_FILE).unwrap();
-        let regions : Vec<String> = annot_regions(&annot);
+        let regions : Vec<String> = annot.regions();
 
         assert_eq!(regions[0], "unknown");
         assert_eq!(regions[1], "bankssts");
@@ -250,7 +249,7 @@ mod test {
     fn annot_region_vertices_are_computed_correctly() {
         const ANNOT_FILE: &str = "resources/subjects_dir/subject1/label/lh.aparc.annot";
         let annot = read_annot(ANNOT_FILE).unwrap();
-        let region_verts : Vec<usize> = region_vertices(&annot, String::from("bankssts"));
+        let region_verts : Vec<usize> = annot.region_vertices(String::from("bankssts"));
 
         assert_eq!(1722, region_verts.len());
     }
