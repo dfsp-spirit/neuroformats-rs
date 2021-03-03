@@ -5,7 +5,7 @@ The `neuroformats` crate provides access to structural neuroimaging data in Rust
 
 ## Installation
 
-A very early version of the `neuroformats` crate is now on [crates.io](https://crates.io/crates/neuroformats).
+A very early version of the `neuroformats` crate [is on crates.io](https://crates.io/crates/neuroformats).
 
 To use the library in your project, add it as a dependency in your `Cargo.toml` file, e.g.:
 
