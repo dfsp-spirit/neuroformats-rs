@@ -1,6 +1,6 @@
 //! Functions for managing FreeSurfer brain surface meshes in binary 'surf' files.
 //!
-//! These files store a triangular mesh, where each vertex is defined by its x,y,z coords and 
+//! Surf files store a triangular mesh, where each vertex is defined by its x,y,z coords and 
 //! each face is defined by 3 vertices, stored as 3 row-indices into the vertices matrix.
 //! These vertex indices are zero-based.
 
@@ -182,7 +182,12 @@ impl BrainMesh {
 
 /// Read an FsSurface instance from a file.
 ///
-/// See [`crate::read_curv`] to read per-vertex data for the mesh.
+/// Surf files store a triangular mesh, where each vertex is defined by its x,y,z coords and 
+/// each face is defined by 3 vertices, stored as 3 row-indices into the vertices matrix.
+/// These vertex indices are zero-based. The mesh typically represents a single brain hemisphere.
+///
+/// See [`crate::read_curv`] to read per-vertex data for the mesh and [`crate::read_annot`] to
+/// read atlas-based parcellations.
 ///
 /// # Examples
 ///
