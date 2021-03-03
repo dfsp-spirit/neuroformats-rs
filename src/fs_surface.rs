@@ -8,7 +8,7 @@
 use byteordered::{ByteOrdered};
 
 use std::{fs::File};
-use std::io::{BufReader, Read, Seek};
+use std::io::{BufReader, BufRead, Read, Seek};
 use std::path::{Path};
 
 use crate::util::read_variable_length_string;
@@ -119,6 +119,57 @@ impl BrainMesh {
         let obj_repr = obj_repr.join("");
         obj_repr
     }
+
+    /// Read a brain mesh from a Wavefront object format (.obj) mesh file.
+    pub fn from_obj_file<P: AsRef<Path>>(path: P) -> Result<BrainMesh> {
+    
+        let reader = BufReader::new(File::open(path)?);
+
+        let mut vertex_data : Vec<f32> = Vec::new();
+        let mut face_data : Vec<i32> = Vec::new();
+
+        let mut num_vertices: i32 = 0;
+        let mut num_faces: i32 = 0;
+
+        // Read the file line by line using the lines() iterator from std::io::BufRead.
+        for (_index, line) in reader.lines().enumerate() {
+
+            let line = line?;
+            let mut iter = line.split_whitespace();
+    
+            
+            let entry_type = iter.next().unwrap().trim();
+            if entry_type == "v" {
+                num_vertices += 1;
+                vertex_data.push(iter.next().unwrap().parse::<f32>().unwrap());
+                vertex_data.push(iter.next().unwrap().parse::<f32>().unwrap());
+                vertex_data.push(iter.next().unwrap().parse::<f32>().unwrap());
+            } else if entry_type == "f" {
+                num_faces += 1;
+                face_data.push(iter.next().unwrap().parse::<i32>().unwrap());
+                face_data.push(iter.next().unwrap().parse::<i32>().unwrap());
+                face_data.push(iter.next().unwrap().parse::<i32>().unwrap());
+            } else if entry_type == "#" {
+                continue; // a comment line.
+            } else {
+                return Err(NeuroformatsError::InvalidWavefrontObjectFormat);
+            }                
+        }
+
+        if num_vertices < 1 || num_faces < 1 {
+            return Err(NeuroformatsError::EmptyWavefrontObjectFile);
+        }
+
+        let vertices = Array::from_shape_vec((num_vertices as usize, 3 as usize), vertex_data).unwrap();
+        let faces = Array::from_shape_vec((num_faces as usize, 3 as usize), face_data).unwrap();
+
+        let mesh = BrainMesh {
+            vertices : vertices,
+            faces : faces
+        };
+        Ok(mesh)
+    }
+
 
 }
 

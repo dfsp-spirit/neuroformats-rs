@@ -53,10 +53,10 @@ pub fn read_label<P: AsRef<Path>>(path: P) -> Result<FsLabel> {
         // We ignore the first line at index 0: it is a comment line.
         
         if index == 1 {
-            hdr_num_entries = line.unwrap().parse::<i32>().unwrap();
+            hdr_num_entries = line?.parse::<i32>().unwrap();
         }
         else if index >= 2 {
-            let line = line.unwrap();
+            let line = line?;
             let mut iter = line.split_whitespace();
             label.vertex_index.push(iter.next().unwrap().parse::<i32>().unwrap());
             label.coord1.push(iter.next().unwrap().parse::<f32>().unwrap());

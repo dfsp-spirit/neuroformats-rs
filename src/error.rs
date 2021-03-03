@@ -21,8 +21,16 @@ quick_error! {
             display("Invalid FreeSurfer label file")
         }
 
+        InvalidWavefrontObjectFormat {
+            display("Invalid Wavefront Object format file or unsupported dialect")
+        }
+
         UnsupportedFsAnnotFormatVersion {
             display("Unsupported FreeSurfer annot file format version")
+        }
+
+        EmptyWavefrontObjectFile {
+            display("The Wavefront Object mesh file does not contain a mesh")
         }
 
         /// I/O Error
