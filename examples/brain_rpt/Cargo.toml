@@ -1,0 +1,13 @@
+[package]
+name = "brain_rpt"
+version = "0.1.0"
+authors = ["Tim Schäfer <ts+code@rcmd.org>"]
+edition = "2018"
+
+[dependencies]
+neuroformats = "0.1.0"
+rpt = "0.2"
+tempfile = "3.2.0"
+color-eyre = "0.5.10"
+
+
