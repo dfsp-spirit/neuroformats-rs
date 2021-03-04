@@ -11,14 +11,14 @@ use tempfile::Builder;
 // Load a FreeSurfer brain mesh with neuroformats, export as OBJ and re-import with rpt loader.
 fn load_brain_from_surf(path: &String) -> color_eyre::Result<Mesh> {
     let surf = neuroformats::read_surf(path)?;
+    
+    // Export to OBJ format
     let obj_repr: String = surf.mesh.to_obj();
-
-
     let dir = Builder::new().prefix("my-temporary-dir").rand_bytes(5).tempdir()?;
     let file_path = dir.path().join("tmp_surf_as.obj");
-
     fs::write(file_path.clone(), obj_repr).expect("Unable to write tmp OBJ file");
 
+    // Load OBJ
     let obj_file = fs::File::open(file_path)?;
     load_obj(obj_file).map_err(|e| e.into())
 }
@@ -76,17 +76,17 @@ fn main() {
     ));
 
     let camera = Camera::look_at(
-        glm::vec3(-2.5, 4.0, 6.5),
-        glm::vec3(0.0, -1.5, 0.0), //glm::vec3(0.0, -0.25, 0.0),
-        glm::vec3(0.0, 1.0, 0.0),
-        std::f64::consts::FRAC_PI_4,
+        glm::vec3(-2.5, 4.0, 6.5), // camera position
+        glm::vec3(0.0, -1.5, 0.0), // target // glm::vec3(0.0, -0.25, 0.0),
+        glm::vec3(0.0, 1.0, 0.0),  // elevation
+        std::f64::consts::FRAC_PI_4, // fov
     );
 
     Renderer::new(&scene, camera)
-        .width(400)
-        .height(300)
-        .max_bounces(2)
-        .num_samples(10)
+        .width(800)
+        .height(600)
+        .max_bounces(5)
+        .num_samples(100)
         .render()
         .save(output_img)
         .unwrap();
