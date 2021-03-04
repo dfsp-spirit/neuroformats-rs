@@ -25,13 +25,17 @@ fn load_brain_from_surf(path: &String) -> color_eyre::Result<Mesh> {
 
 
 fn main() {
+
+    println!("=== Neuroformats Example: Raytracing a brain surface with rpt ===");
+    println!("* Loading data.");
+
     let mut scene = Scene::new();
 
     let brain_lh = load_brain_from_surf(&String::from("../../resources/subjects_dir/subject1/surf/lh.white")).unwrap();
     let brain_rh = load_brain_from_surf(&String::from("../../resources/subjects_dir/subject1/surf/rh.white")).unwrap();
     let output_img = "output.png";
 
-    println!("Data loaded, creating scene and raytracing.");
+    println!("* Data loaded, creating scene and raytracing. This may take a while...");
 
     let brain_scale = glm::vec3(0.03, 0.03, 0.03);
     let brain_mat = Material::specular(hex_color(0xBABABA), 0.1);
@@ -87,5 +91,6 @@ fn main() {
         .save(output_img)
         .unwrap();
 
-    println!("Done, see image '{}'.", output_img);
+    println!("* Done, see output image '{}'.", output_img);
 }
+
