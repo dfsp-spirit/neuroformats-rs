@@ -1,6 +1,8 @@
 // To run this from a terminal:
 //     cd neuroformats/examples/brain_rpt
 //     cargo run --release
+//
+// This is based on the dragon example from the `rpt` crate by Eric Zhang.
 
 use rpt::*;
 use std::fs;
