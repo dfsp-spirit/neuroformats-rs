@@ -1,0 +1,17 @@
+neuroFormats Changes
+=====================
+
+
+Version 0.2.0
+-------------
+
+
+
+Version 0.1.0
+--------------
+- Initial release.
+- Support reading FreeSurfer per-vertex data from curv files: `neuroformats::read_curv`
+- Support reading of FreeSurfer brain meshes: `neuroformats::read_surf`
+- Support reading of FreeSurfer label files: `neuroformats::read_label`
+- Support reading of FreeSurfer brain surface parcellations in annot files: `neuroformats::read_annot`
+
