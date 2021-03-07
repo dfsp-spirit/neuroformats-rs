@@ -33,6 +33,10 @@ quick_error! {
             display("The Wavefront Object mesh file does not contain a mesh")
         }
 
+        InvalidFsMghFormat {
+            display("Invalid FreeSurfer MGH file")
+        }
+
         /// I/O Error
         Io(err: IOError) {
             from()

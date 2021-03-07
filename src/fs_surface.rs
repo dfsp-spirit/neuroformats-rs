@@ -102,6 +102,23 @@ pub struct BrainMesh {
     pub faces: Array2<i32>, 
 }
 
+pub fn a22veci32<I32: Clone>(a2 : Array2<i32>) -> Vec<i32> {
+    let mut ve : Vec<i32> = Vec::with_capacity(a2.len());
+    
+    for v in a2.iter() {
+        ve.push((*v).clone());
+    }
+    ve
+}
+
+pub fn a22vec<T: Clone>(a2 : Array2<T>) -> Vec<T> {
+    let mut ve : Vec<T> = Vec::with_capacity(a2.len());
+    
+    for v in a2.iter() {
+        ve.push((*v).clone());
+    }
+    ve
+}
 
 impl BrainMesh {
     /// Export a brain mesh to a Wavefront Object (OBJ) format string.
