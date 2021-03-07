@@ -6,7 +6,7 @@ use ndarray::{Array, Array4};
 
 
 use std::{fs::File};
-use std::io::{BufReader, Read, Seek};
+use std::io::{BufReader, Read};
 use std::path::{Path};
 
 use crate::error::{NeuroformatsError, Result};
@@ -15,7 +15,7 @@ pub const MGH_VERSION: i32 = 1;
 
 pub const MGH_DATATYPE_NAMES : [&str; 4] = ["MRI_UCHAR", "MRI_INT", "MRI_FLOAT", "MRI_SHORT"];
 pub const MGH_DATATYPE_CODES : [i32; 4] = [0, 1, 3, 4];
-
+pub const MGH_DATA_START : i32 = 284; // The index in bytes where the data part starts in an MGH file.
 
 /// Models the header of a FreeSurfer MGH file containing a brain volume.
 #[derive(Debug, Clone, PartialEq)]
@@ -36,9 +36,12 @@ pub struct FsMghHeader {
 
 /// Models a FreeSurfer MGH file.
 #[derive(Debug, Clone, PartialEq)]
-pub struct FsMgh<T> {
+pub struct FsMgh {
     pub header: FsMghHeader,
-    pub data: Array4<T>,
+    pub data_mri_uchar: Option<Array4<u8>>,
+    pub data_mri_float: Option<Array4<f32>>,
+    pub data_mri_int: Option<Array4<i32>>,
+    pub data_mri_short: Option<Array4<i16>>,
 }
 
 
@@ -75,7 +78,7 @@ impl FsMghHeader {
     /// header.
     pub fn from_reader<S>(input: &mut S) -> Result<FsMghHeader>
     where
-        S: Read + Seek,
+        S: Read,
     {
         let mut hdr = FsMghHeader::default();
     
@@ -111,19 +114,28 @@ impl FsMghHeader {
 }
 
 
-impl FsMgh<i32> {
+impl FsMgh {
 
     /// Read an MGH or MGZ file.
-    pub fn from_file<P: AsRef<Path> + Copy>(path: P) -> Result<FsMgh<i32>> {
+    pub fn from_file<P: AsRef<Path> + Copy>(path: P, hdr : &FsMghHeader) -> Result<FsMgh> {
 
         let file = BufReader::new(File::open(path)?);
         let mut file = ByteOrdered::be(file);
 
-        let mgh_data = Array::from_shape_vec((1 as usize, 1 as usize, 1 as usize, 1 as usize), vec![1 as i32]).unwrap();
+        // TODO: skip or read to end of header or re-use existing reader.
 
-        let mgh = FsMgh::<i32> {
+        if hdr.dtype == 0 { // MRI_UCHAR
+
+        }
+        // TODO: read data from file.
+        let mgh_data = Array::from_shape_vec((1 as usize, 1 as usize, 1 as usize, 1 as usize), vec![1.0 as f32]).unwrap();
+
+        let mgh = FsMgh {
             header : FsMghHeader::default(),
-            data : mgh_data,
+            data_mri_uchar : None,
+            data_mri_int : None,
+            data_mri_float : Some(mgh_data),
+            data_mri_short : None,
         };
         Ok(mgh)
     }
@@ -131,7 +143,7 @@ impl FsMgh<i32> {
 
 
 /// Read an MGH or MGZ file.
-pub fn read_mgh<T, P: AsRef<Path> + Copy>(path: P) -> Result<FsMgh<T>> {
+pub fn read_mgh<P: AsRef<Path> + Copy>(path: P) -> Result<FsMgh> {
     FsMgh::from_file(path)
 }
 
