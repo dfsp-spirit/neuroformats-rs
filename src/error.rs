@@ -37,6 +37,10 @@ quick_error! {
             display("Invalid FreeSurfer MGH file")
         }
 
+        UnsupportedMriDataTypeInMgh {
+            display("Invalid or unsupported MRI_DTYPE in MGH file")
+        }
+
         /// I/O Error
         Io(err: IOError) {
             from()

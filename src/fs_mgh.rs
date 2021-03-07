@@ -2,7 +2,7 @@
 
 
 use byteordered::{ByteOrdered};
-use ndarray::{Array, Array4};
+use ndarray::{Array, Array4, Dim};
 
 
 use std::{fs::File};
@@ -15,6 +15,7 @@ pub const MGH_VERSION: i32 = 1;
 
 pub const MGH_DATATYPE_NAMES : [&str; 4] = ["MRI_UCHAR", "MRI_INT", "MRI_FLOAT", "MRI_SHORT"];
 pub const MGH_DATATYPE_CODES : [i32; 4] = [0, 1, 3, 4];
+
 pub const MGH_DATA_START : i32 = 284; // The index in bytes where the data part starts in an MGH file.
 
 /// Models the header of a FreeSurfer MGH file containing a brain volume.
@@ -117,30 +118,64 @@ impl FsMghHeader {
 impl FsMgh {
 
     /// Read an MGH or MGZ file.
-    pub fn from_file<P: AsRef<Path> + Copy>(path: P, hdr : &FsMghHeader) -> Result<FsMgh> {
+    pub fn from_file<P: AsRef<Path> + Copy>(path: P) -> Result<FsMgh> {
 
         let file = BufReader::new(File::open(path)?);
         let mut file = ByteOrdered::be(file);
 
+        let hdr : FsMghHeader = FsMghHeader::from_file(path)?;
+        let vol_dim = Dim([hdr.dim1len as usize, hdr.dim2len as usize, hdr.dim3len as usize, hdr.dim4len as usize]);
+
         // TODO: skip or read to end of header or re-use existing reader.
+        for _ in 1..=MGH_DATA_START {
+            let _discarded = file.read_u8()?;
+        }
+
+        let mut data_mri_uchar = None;
+        let mut data_mri_int = None;
+        let mut data_mri_float = None;
+        let mut data_mri_short = None;
+
+        let num_voxels : usize = (hdr.dim1len * hdr.dim2len * hdr.dim3len * hdr.dim4len) as usize; 
 
         if hdr.dtype == 0 { // MRI_UCHAR
-
+            let mut mgh_data : Vec<u8> = Vec::with_capacity(num_voxels);
+            for _ in 1..=num_voxels {
+                mgh_data.push(file.read_u8()?);
+            }
+            data_mri_uchar = Some(Array::from_shape_vec(vol_dim, mgh_data).unwrap());
+        } else if hdr.dtype == 1 { // MRI_INT
+            let mut mgh_data : Vec<i32> = Vec::with_capacity(num_voxels);
+            for _ in 1..=num_voxels {
+                mgh_data.push(file.read_i32()?);
+            }
+            data_mri_int = Some(Array::from_shape_vec(vol_dim, mgh_data).unwrap());
+        } else if hdr.dtype == 3 { // MRI_FLOAT
+            let mut mgh_data : Vec<f32> = Vec::with_capacity(num_voxels);
+            for _ in 1..=num_voxels {
+                mgh_data.push(file.read_f32()?);
+            }
+            data_mri_float = Some(Array::from_shape_vec(vol_dim, mgh_data).unwrap());
+        } else if hdr.dtype == 4 { // MRI_SHORT
+            let mut mgh_data : Vec<i16> = Vec::with_capacity(num_voxels);
+            for _ in 1..=num_voxels {
+                mgh_data.push(file.read_i16()?);
+            }
+            data_mri_short = Some(Array::from_shape_vec(vol_dim, mgh_data).unwrap());
+        } else {
+            return Err(NeuroformatsError::UnsupportedMriDataTypeInMgh);
         }
-        // TODO: read data from file.
-        let mgh_data = Array::from_shape_vec((1 as usize, 1 as usize, 1 as usize, 1 as usize), vec![1.0 as f32]).unwrap();
 
         let mgh = FsMgh {
             header : FsMghHeader::default(),
-            data_mri_uchar : None,
-            data_mri_int : None,
-            data_mri_float : Some(mgh_data),
-            data_mri_short : None,
+            data_mri_uchar : data_mri_uchar,
+            data_mri_int : data_mri_int,
+            data_mri_float : data_mri_float,
+            data_mri_short : data_mri_short,
         };
         Ok(mgh)
     }
 }
-
 
 /// Read an MGH or MGZ file.
 pub fn read_mgh<P: AsRef<Path> + Copy>(path: P) -> Result<FsMgh> {
