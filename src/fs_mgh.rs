@@ -38,15 +38,20 @@ pub struct FsMghHeader {
     pub p_xyz_c: [f32; 3],
 }
 
+/// Models the data part of a FreeSurfer MGH file.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FsMghData {
+    pub data_mri_uchar: Option<Array4<u8>>,
+    pub data_mri_float: Option<Array4<f32>>,
+    pub data_mri_int: Option<Array4<i32>>,
+    pub data_mri_short: Option<Array4<i16>>,
+}
 
 /// Models a FreeSurfer MGH file.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FsMgh {
     pub header: FsMghHeader,
-    pub data_mri_uchar: Option<Array4<u8>>,
-    pub data_mri_float: Option<Array4<f32>>,
-    pub data_mri_int: Option<Array4<i32>>,
-    pub data_mri_short: Option<Array4<i16>>,
+    pub data: FsMghData
 }
 
 
@@ -88,9 +93,7 @@ impl FsMghHeader {
     /// Read an MGH header from the given byte stream.
     /// It is assumed that the input is currently at the start of the
     /// header.
-    pub fn from_reader<S>(input: &mut S) -> Result<FsMghHeader>
-    where
-        S: Read,
+    pub fn from_reader<S>(input: &mut S) -> Result<FsMghHeader> where S: Read,
     {
         let mut hdr = FsMghHeader::default();
     
@@ -131,21 +134,30 @@ impl FsMgh {
     /// Read an MGH or MGZ file.
     pub fn from_file<P: AsRef<Path> + Copy>(path: P) -> Result<FsMgh> {
 
-        let gz = is_mgz_file(&path);
-
-        let mut file = BufReader::new(File::open(path)?);
-
-        if gz {
-            file = GzDecoder::new(file);
-        }
-
-        file = ByteOrdered::be(file);
-
         let hdr : FsMghHeader = FsMghHeader::from_file(path)?;
 
-        println!("hdr: {:?}", hdr);
+        let gz = is_mgz_file(&path);
+        let mut file = BufReader::new(File::open(path)?);
+
+        let data = 
+        if gz {
+            FsMgh::data_from_reader(&mut GzDecoder::new(file), &hdr)?
+        } else {
+            FsMgh::data_from_reader(&mut file, &hdr)?
+        };
+
+        let mgh = FsMgh {
+            header : hdr,
+            data : data,
+        };
+        Ok(mgh)
+    }
+
+    pub fn data_from_reader<S>(file: &mut S, hdr: &FsMghHeader) -> Result<FsMghData> where S: Read, {
 
         let vol_dim = Dim([hdr.dim1len as usize, hdr.dim2len as usize, hdr.dim3len as usize, hdr.dim4len as usize]);
+
+        let mut file = ByteOrdered::be(file);
 
         // Skip or read to end of header.
         for _ in 1..=MGH_DATA_START {
@@ -189,14 +201,13 @@ impl FsMgh {
             return Err(NeuroformatsError::UnsupportedMriDataTypeInMgh);
         }
 
-        let mgh = FsMgh {
-            header : hdr,
+        let mgh_data = FsMghData {
             data_mri_uchar : data_mri_uchar,
             data_mri_int : data_mri_int,
             data_mri_float : data_mri_float,
             data_mri_short : data_mri_short,
         };
-        Ok(mgh)
+        Ok(mgh_data)
     }
 
     /// Get dimensions of the MGH data.
