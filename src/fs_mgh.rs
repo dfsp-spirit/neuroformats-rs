@@ -244,11 +244,20 @@ mod test {
         const MGZ_FILE: &str = "resources/subjects_dir/subject1/mri/brain.mgz";
         let mgh = read_mgh(MGZ_FILE).unwrap();
 
+        // Test MGH header.
         assert_eq!(mgh.header.dim1len, 256);
         assert_eq!(mgh.header.dim2len, 256);
         assert_eq!(mgh.header.dim3len, 256);
         assert_eq!(mgh.header.dim4len, 1);
+        assert_eq!(mgh.header.dtype, MRI_UCHAR);
         assert_eq!(mgh.header.is_ras_good, 1);
+
+        // Test MGH data.
+        let data = mgh.data.data_mri_uchar.unwrap();
+        assert_eq!(data.ndim(), 4);
+        assert_eq!(data[[99, 99, 99, 0]], 77);   // try on command line: mri_info --voxel 99 99 99 resources/subjects_dir/subject1/mri/brain.mgz
+        assert_eq!(data[[109, 109, 109, 0]], 71);
+        assert_eq!(data[[0, 0, 0, 0]], 0);
     }
 
     #[test]
