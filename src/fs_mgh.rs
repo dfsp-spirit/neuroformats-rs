@@ -11,10 +11,14 @@ use std::path::{Path};
 
 use crate::error::{NeuroformatsError, Result};
 
-pub const MGH_VERSION: i32 = 1;
+pub const MGH_VERSION_CODE: i32 = 1;
 
 pub const MGH_DATATYPE_NAMES : [&str; 4] = ["MRI_UCHAR", "MRI_INT", "MRI_FLOAT", "MRI_SHORT"];
 pub const MGH_DATATYPE_CODES : [i32; 4] = [0, 1, 3, 4];
+pub const MRI_UCHAR : i32 = 0;
+pub const MRI_INT : i32 = 1;
+pub const MRI_FLOAT : i32 = 3;
+pub const MRI_SHORT : i32 = 4;
 
 pub const MGH_DATA_START : i32 = 284; // The index in bytes where the data part starts in an MGH file.
 
@@ -25,7 +29,7 @@ pub struct FsMghHeader {
     pub dim1len: i32,
     pub dim2len: i32,
     pub dim3len: i32,
-    pub dim4len: i32,  // aka "num_frames"
+    pub dim4len: i32,  // aka "num_frames", this typically is the time dimension.
     pub dtype: i32,
     pub dof: i32,
     pub is_ras_good: i16,
@@ -87,7 +91,7 @@ impl FsMghHeader {
 
         hdr.mgh_format_version = input.read_i32()?;
 
-        if hdr.mgh_format_version != MGH_VERSION {
+        if hdr.mgh_format_version != MGH_VERSION_CODE {
             return Err(NeuroformatsError::InvalidFsMghFormat);
         }
 
@@ -126,7 +130,7 @@ impl FsMgh {
         let hdr : FsMghHeader = FsMghHeader::from_file(path)?;
         let vol_dim = Dim([hdr.dim1len as usize, hdr.dim2len as usize, hdr.dim3len as usize, hdr.dim4len as usize]);
 
-        // TODO: skip or read to end of header or re-use existing reader.
+        // Skip or read to end of header.
         for _ in 1..=MGH_DATA_START {
             let _discarded = file.read_u8()?;
         }
@@ -138,25 +142,25 @@ impl FsMgh {
 
         let num_voxels : usize = (hdr.dim1len * hdr.dim2len * hdr.dim3len * hdr.dim4len) as usize; 
 
-        if hdr.dtype == 0 { // MRI_UCHAR
+        if hdr.dtype == MRI_UCHAR {
             let mut mgh_data : Vec<u8> = Vec::with_capacity(num_voxels);
             for _ in 1..=num_voxels {
                 mgh_data.push(file.read_u8()?);
             }
             data_mri_uchar = Some(Array::from_shape_vec(vol_dim, mgh_data).unwrap());
-        } else if hdr.dtype == 1 { // MRI_INT
+        } else if hdr.dtype == MRI_INT {
             let mut mgh_data : Vec<i32> = Vec::with_capacity(num_voxels);
             for _ in 1..=num_voxels {
                 mgh_data.push(file.read_i32()?);
             }
             data_mri_int = Some(Array::from_shape_vec(vol_dim, mgh_data).unwrap());
-        } else if hdr.dtype == 3 { // MRI_FLOAT
+        } else if hdr.dtype == MRI_FLOAT {
             let mut mgh_data : Vec<f32> = Vec::with_capacity(num_voxels);
             for _ in 1..=num_voxels {
                 mgh_data.push(file.read_f32()?);
             }
             data_mri_float = Some(Array::from_shape_vec(vol_dim, mgh_data).unwrap());
-        } else if hdr.dtype == 4 { // MRI_SHORT
+        } else if hdr.dtype == MRI_SHORT {
             let mut mgh_data : Vec<i16> = Vec::with_capacity(num_voxels);
             for _ in 1..=num_voxels {
                 mgh_data.push(file.read_i16()?);
@@ -175,10 +179,54 @@ impl FsMgh {
         };
         Ok(mgh)
     }
+
+    /// Get dimensions of the MGH data.
+    pub fn dim(&self) -> [usize; 4] {
+        [self.header.dim1len as usize, self.header.dim2len as usize, self.header.dim3len as usize, self.header.dim4len as usize]
+    }
 }
+
+/// Check whether the file extension ends with ".mgz".
+pub fn is_mgz_file<P>(path: P) -> bool
+where
+    P: AsRef<Path>,
+{
+    path.as_ref()
+        .file_name()
+        .map(|a| a.to_string_lossy().ends_with(".mgz"))
+        .unwrap_or(false)
+}
+
 
 /// Read an MGH or MGZ file.
 pub fn read_mgh<P: AsRef<Path> + Copy>(path: P) -> Result<FsMgh> {
     FsMgh::from_file(path)
 }
 
+
+#[cfg(test)]
+mod test { 
+    use super::*;
+
+    #[test]
+    fn the_brain_mgz_file_can_be_read() {
+        const MGZ_FILE: &str = "resources/subjects_dir/subject1/mri/brain.mgz";
+        let mgh = read_mgh(MGZ_FILE).unwrap();
+
+        assert_eq!(mgh.header.dim1len, 256);
+        assert_eq!(mgh.header.dim2len, 256);
+        assert_eq!(mgh.header.dim3len, 256);
+        assert_eq!(mgh.header.dim4len, 1);
+    }
+
+    #[test]
+    fn the_demo_mgh_file_can_be_read() {
+        const MGH_FILE: &str = "resources/mgh/tiny.mgh";
+        let mgh = read_mgh(MGH_FILE).unwrap();
+
+        assert_eq!(mgh.header.dim1len, 256);
+        assert_eq!(mgh.header.dim2len, 256);
+        assert_eq!(mgh.header.dim3len, 256);
+        assert_eq!(mgh.header.dim4len, 1);
+    }
+}
