@@ -113,7 +113,7 @@ impl FsCurv {
     pub fn from_file<P: AsRef<Path> + Copy>(path: P) -> Result<FsCurv> {
         let gz = is_gz_file(&path);
 
-        let hdr = FsCurvHeader::from_file(path).unwrap();
+        let hdr = FsCurvHeader::from_file(path)?;
 
         let file = BufReader::new(File::open(path)?);
 

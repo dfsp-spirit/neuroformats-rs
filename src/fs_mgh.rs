@@ -1,6 +1,6 @@
 //! Functions for managing FreeSurfer brain volumes in binary 'MGH' files.
 
-
+use flate2::bufread::GzDecoder;
 use byteordered::{ByteOrdered};
 use ndarray::{Array, Array4, Dim};
 
@@ -73,8 +73,15 @@ impl FsMghHeader {
     
     /// Read an MGH header from a file.
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<FsMghHeader> {
+        let gz = is_mgz_file(&path);
         let mut file = BufReader::new(File::open(path)?);
-        FsMghHeader::from_reader(&mut file)
+
+        if gz {
+            FsMghHeader::from_reader(&mut GzDecoder::new(file))
+        } else {
+            FsMghHeader::from_reader(&mut file)
+        }
+        
     }
 
 
@@ -124,10 +131,20 @@ impl FsMgh {
     /// Read an MGH or MGZ file.
     pub fn from_file<P: AsRef<Path> + Copy>(path: P) -> Result<FsMgh> {
 
-        let file = BufReader::new(File::open(path)?);
-        let mut file = ByteOrdered::be(file);
+        let gz = is_mgz_file(&path);
+
+        let mut file = BufReader::new(File::open(path)?);
+
+        if gz {
+            file = GzDecoder::new(file);
+        }
+
+        file = ByteOrdered::be(file);
 
         let hdr : FsMghHeader = FsMghHeader::from_file(path)?;
+
+        println!("hdr: {:?}", hdr);
+
         let vol_dim = Dim([hdr.dim1len as usize, hdr.dim2len as usize, hdr.dim3len as usize, hdr.dim4len as usize]);
 
         // Skip or read to end of header.
@@ -141,6 +158,8 @@ impl FsMgh {
         let mut data_mri_short = None;
 
         let num_voxels : usize = (hdr.dim1len * hdr.dim2len * hdr.dim3len * hdr.dim4len) as usize; 
+
+        println!("About to read {} voxels, using MRI_DTYPE {}.", num_voxels, hdr.dtype);
 
         if hdr.dtype == MRI_UCHAR {
             let mut mgh_data : Vec<u8> = Vec::with_capacity(num_voxels);
@@ -171,7 +190,7 @@ impl FsMgh {
         }
 
         let mgh = FsMgh {
-            header : FsMghHeader::default(),
+            header : hdr,
             data_mri_uchar : data_mri_uchar,
             data_mri_int : data_mri_int,
             data_mri_float : data_mri_float,
@@ -185,6 +204,7 @@ impl FsMgh {
         [self.header.dim1len as usize, self.header.dim2len as usize, self.header.dim3len as usize, self.header.dim4len as usize]
     }
 }
+
 
 /// Check whether the file extension ends with ".mgz".
 pub fn is_mgz_file<P>(path: P) -> bool
@@ -217,6 +237,7 @@ mod test {
         assert_eq!(mgh.header.dim2len, 256);
         assert_eq!(mgh.header.dim3len, 256);
         assert_eq!(mgh.header.dim4len, 1);
+        assert_eq!(mgh.header.is_ras_good, 1);
     }
 
     #[test]
@@ -224,9 +245,10 @@ mod test {
         const MGH_FILE: &str = "resources/mgh/tiny.mgh";
         let mgh = read_mgh(MGH_FILE).unwrap();
 
-        assert_eq!(mgh.header.dim1len, 256);
-        assert_eq!(mgh.header.dim2len, 256);
-        assert_eq!(mgh.header.dim3len, 256);
+        assert_eq!(mgh.header.dim1len, 3);
+        assert_eq!(mgh.header.dim2len, 3);
+        assert_eq!(mgh.header.dim3len, 3);
         assert_eq!(mgh.header.dim4len, 1);
+        assert_eq!(mgh.header.is_ras_good, -1);
     }
 }
