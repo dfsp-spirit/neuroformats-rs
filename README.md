@@ -1,7 +1,7 @@
 # neuroformats
 Handling of structural neuroimaging file formats for [Rust](https://www.rust-lang.org/).
 
-The `neuroformats` crate provides access to structural neuroimaging data in Rust by implementing parsers for various file formats. The focus is on surface-based brain morphometry data, as produced from 3D MRI images by tools like [FreeSurfer](http://freesurfer.net/), [CAT12](http://www.neuro.uni-jena.de/cat/) or others.
+The `neuroformats` crate provides access to structural neuroimaging data in Rust by implementing parsers for various file formats. The focus is on surface-based brain morphometry data, as produced from 3D MRI images by tools like [FreeSurfer](http://freesurfer.net/), [CAT12](http://www.neuro.uni-jena.de/cat/) and others.
 
 ## Installation
 
@@ -20,6 +20,7 @@ neuroformats = "0.1.0"
 * Read brain meshes in FreeSurfer binary mesh format (like `subject/surf/lh.white`): `neuroformats::read_surf`
 * Read FreeSurfer label files (like `subject/label/lh.cortex.label`): `neuroformats::read_label`
 * Read FreeSurfer brain surface parcellations (like `subject/label/lh.aparc.annot`): `neuroformats::read_annot`
+* Read FreeSurfer brain volumes and other data from MGH and MGZ files: `neuroformats::read_mgh`
 
 
 ## Documentation
