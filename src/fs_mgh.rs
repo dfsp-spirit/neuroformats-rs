@@ -150,10 +150,25 @@ impl FsMghHeader {
 
         let p_crs_c = array![(self.dim1len/2) as f32, (self.dim2len/2) as f32, (self.dim3len/2) as f32]; // CRS indices of the center voxel
 
-        let p_xyz_0 = self.p_xyz_c - (mdc_scaled.dot(&p_crs_c)); // The x,y,z location at CRS=0,0,0 (also known as P0 RAS or 'first voxel RAS').
+        let p_xyz_c = array![self.p_xyz_c[0], self.p_xyz_c[1], self.p_xyz_c[2]];
 
+        let p_xyz_0 = p_xyz_c - (mdc_scaled.dot(&p_crs_c)); // The x,y,z location at CRS=0,0,0 (also known as P0 RAS or 'first voxel RAS').
 
-        Ok(d)
+        // Plug everything together:
+        let mut m : Array2<f32> = Array::zeros((4, 4));
+
+        // Set upper left 3x3 matrix to mdc_scaled.
+        for i in 0..3 {
+            for j in 0..3 {
+                m[[i, j]] = mdc_scaled[[i, j]];
+            }
+        }
+        m[[0, 3]] = p_xyz_0[0];  // Set last column to p_xyz_0
+        m[[1, 3]] = p_xyz_0[1];
+        m[[2, 3]] = p_xyz_0[2];
+        m[[3, 3]] = 1.;          // Set last row to affine 0, 0, 0, 1. (only the last 1 needs manipulation)
+
+        Ok(m)
     }
 }
 
@@ -299,6 +314,9 @@ mod test {
         assert_eq!(mgh.header.dim4len, 1);
         assert_eq!(mgh.header.dtype, MRI_UCHAR);
         assert_eq!(mgh.header.is_ras_good, 1);
+
+        // Test vox2ras computation
+        assert_eq!(mgh.header.vox2ras().unwrap().len(), 16);
 
         // Test MGH data.
         let data = mgh.data.data_mri_uchar.unwrap();
