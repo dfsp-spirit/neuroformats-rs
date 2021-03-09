@@ -2,7 +2,7 @@
 
 use flate2::bufread::GzDecoder;
 use byteordered::{ByteOrdered};
-use ndarray::{Array, Array2, Array4, Dim};
+use ndarray::{Array, Array2, Array4, Dim, array};
 
 
 use std::{fs::File};
@@ -140,7 +140,20 @@ impl FsMghHeader {
         }
 
         // TODO: compute vox2ras
+        let mut d : Array2<f32> = Array::zeros((3, 3));
+        d[[0, 0]] = self.delta[0]; // delta holds the voxel size along the 3 dimensions (xsize, ysize, zsize)
+        d[[1, 1]] = self.delta[1];
+        d[[2, 2]] = self.delta[2];
 
+        let mdc_mat = Array2::from_shape_vec((3, 3), self.mdc_raw.to_vec()).unwrap();
+        let mdc_scaled : Array2<f32> = mdc_mat.dot(&d);          // Scaled by the voxel dimensions (xsize, ysize, zsize)
+
+        let p_crs_c = array![(self.dim1len/2) as f32, (self.dim2len/2) as f32, (self.dim3len/2) as f32]; // CRS indices of the center voxel
+
+        let p_xyz_0 = self.p_xyz_c - (mdc_scaled.dot(&p_crs_c)); // The x,y,z location at CRS=0,0,0 (also known as P0 RAS or 'first voxel RAS').
+
+
+        Ok(d)
     }
 }
 
