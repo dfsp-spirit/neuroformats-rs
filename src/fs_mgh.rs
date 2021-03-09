@@ -1,8 +1,8 @@
-//! Functions for managing FreeSurfer brain volumes in binary 'MGH' files.
+//! Functions for managing FreeSurfer brain volumes or other 3D or 4D data in binary 'MGH' files.
 
 use flate2::bufread::GzDecoder;
 use byteordered::{ByteOrdered};
-use ndarray::{Array, Array4, Dim};
+use ndarray::{Array, Array2, Array4, Dim};
 
 
 use std::{fs::File};
@@ -126,6 +126,22 @@ impl FsMghHeader {
         }        
         Ok(hdr)
     }
+
+    /// Get dimensions of the MGH data.
+    pub fn dim(&self) -> [usize; 4] {
+        [self.dim1len as usize, self.dim2len as usize, self.dim3len as usize, self.dim4len as usize]
+    }
+
+
+    /// Compute the vox2ras matrix from the RAS data in the header, if available.
+    pub fn vox2ras(&self) -> Result<Array2<f32>> {
+        if self.is_ras_good != 1 as i16 {
+            return Err(NeuroformatsError::NoRasInformationInHeader);
+        }
+
+        // TODO: compute vox2ras
+
+    }
 }
 
 
@@ -153,6 +169,8 @@ impl FsMgh {
         Ok(mgh)
     }
 
+
+    /// Read MGH data from a reader. It is assumed that position is before the header.
     pub fn data_from_reader<S>(file: &mut S, hdr: &FsMghHeader) -> Result<FsMghData> where S: Read, {
 
         let vol_dim = Dim([hdr.dim1len as usize, hdr.dim2len as usize, hdr.dim3len as usize, hdr.dim4len as usize]);
@@ -170,8 +188,6 @@ impl FsMgh {
         let mut data_mri_short = None;
 
         let num_voxels : usize = (hdr.dim1len * hdr.dim2len * hdr.dim3len * hdr.dim4len) as usize; 
-
-        println!("About to read {} voxels, using MRI_DTYPE {}.", num_voxels, hdr.dtype);
 
         if hdr.dtype == MRI_UCHAR {
             let mut mgh_data : Vec<u8> = Vec::with_capacity(num_voxels);
@@ -212,7 +228,13 @@ impl FsMgh {
 
     /// Get dimensions of the MGH data.
     pub fn dim(&self) -> [usize; 4] {
-        [self.header.dim1len as usize, self.header.dim2len as usize, self.header.dim3len as usize, self.header.dim4len as usize]
+        self.header.dim()
+    }
+
+
+    /// Compute the vox2ras matrix from the header information, if available.
+    pub fn vox2ras(&self) -> Result<Array2<f32>> {
+        self.header.vox2ras()
     }
 }
 
@@ -230,6 +252,19 @@ where
 
 
 /// Read an MGH or MGZ file.
+///
+/// The MGH format stores images with up to 4 dimensions. It is typically used to
+/// store voxels of 3D magnetic resonance images (MRI) or related data like results from statistical
+/// analyses of these images. By convention, the 4th dimension is the time dimension, and it is often unused.
+/// The format can also be used to store 1D per-vertex data from surface-based analyses, either for a
+/// single subject (in which case only the 1st dimension is used), or for a group (in which case the first and
+/// second dimensions are used).
+///
+/// # Examples
+///
+/// ```no_run
+/// let mgh = neuroformats::read_mgh("/path/to/subjects_dir/subject1/mri/brian.mgz").unwrap();
+/// ```
 pub fn read_mgh<P: AsRef<Path> + Copy>(path: P) -> Result<FsMgh> {
     FsMgh::from_file(path)
 }
@@ -269,6 +304,10 @@ mod test {
         assert_eq!(mgh.header.dim2len, 3);
         assert_eq!(mgh.header.dim3len, 3);
         assert_eq!(mgh.header.dim4len, 1);
+
+        assert_eq!(mgh.dim(), [3 as usize, 3 as usize, 3 as usize, 1 as usize]);
+        assert_eq!(mgh.header.dim(), [3 as usize, 3 as usize, 3 as usize, 1 as usize]);
+
         assert_eq!(mgh.header.is_ras_good, -1);
     }
 }

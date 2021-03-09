@@ -41,6 +41,10 @@ quick_error! {
             display("Invalid or unsupported MRI_DTYPE in MGH file")
         }
 
+        NoRasInformationInHeader {
+            display("The MGH header does not contain valid RAS information.")
+        }
+
         /// I/O Error
         Io(err: IOError) {
             from()
