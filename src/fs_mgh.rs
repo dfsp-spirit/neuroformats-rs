@@ -322,6 +322,10 @@ mod test {
         let delta : Array1<f32> = Array1::from_vec(mgh.header.delta.to_vec());
         let mdc : Array2<f32> = Array2::from_shape_vec((3, 3), mgh.header.mdc_raw.to_vec()).unwrap();
         let p_xyz_c : Array1<f32> = Array1::from_vec(mgh.header.p_xyz_c.to_vec());
+
+        println!("expected delta: {}", expected_delta);
+        println!("found delta: {}", delta);
+
         assert!(delta.all_close(&expected_delta, 1e-5));
         assert!(mdc.all_close(&expected_mdc, 1e-5));
         assert!(p_xyz_c.all_close(&expected_p_xyz_c, 1e-5));
