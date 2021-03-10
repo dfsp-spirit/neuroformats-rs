@@ -317,7 +317,7 @@ mod test {
 
         let expected_delta : Array1<f32> = array![1.0, 1.0, 1.0];
         let expected_mdc : Array2<f32> = Array2::from_shape_vec((3, 3), [-1., 0., 0., 0., 0., -1., 0., 1., 0.].to_vec()).unwrap();
-        let expected_p_xyz_c : Array1<f32> = array![-0.5, 29.4, -48.9];
+        let expected_p_xyz_c : Array1<f32> = array![-0.49995422, 29.372742, -48.90473];
 
         let delta : Array1<f32> = Array1::from_vec(mgh.header.delta.to_vec());
         let mdc : Array2<f32> = Array2::from_shape_vec((3, 3), mgh.header.mdc_raw.to_vec()).unwrap();
@@ -334,7 +334,7 @@ mod test {
         assert_eq!(data[[109, 109, 109, 0]], 71);
         assert_eq!(data[[0, 0, 0, 0]], 0);
 
-        assert_eq!(data.sum() as i32, 121035479);
+        assert_eq!(data.mapv(|a| a as i32).sum(), 121035479);
     }
 
     #[test]
