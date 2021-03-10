@@ -2,7 +2,7 @@
 
 use flate2::bufread::GzDecoder;
 use byteordered::{ByteOrdered};
-use ndarray::{Array, Array2, Array4, Dim, array};
+use ndarray::{Array, Array1, Array2, Array4, Dim, array};
 
 
 use std::{fs::File};
@@ -139,22 +139,22 @@ impl FsMghHeader {
             return Err(NeuroformatsError::NoRasInformationInHeader);
         }
 
-        // TODO: compute vox2ras
+        // Create zero-matrix with voxel sizes along diagonal for scaling
         let mut d : Array2<f32> = Array::zeros((3, 3));
-        d[[0, 0]] = self.delta[0]; // delta holds the voxel size along the 3 dimensions (xsize, ysize, zsize)
+        d[[0, 0]] = self.delta[0]; // delta holds the voxel size in mm along the 3 dimensions (xsize, ysize, zsize)
         d[[1, 1]] = self.delta[1];
         d[[2, 2]] = self.delta[2];
 
         let mdc_mat = Array2::from_shape_vec((3, 3), self.mdc_raw.to_vec()).unwrap();
         let mdc_scaled : Array2<f32> = mdc_mat.dot(&d);          // Scaled by the voxel dimensions (xsize, ysize, zsize)
 
-        let p_crs_c = array![(self.dim1len/2) as f32, (self.dim2len/2) as f32, (self.dim3len/2) as f32]; // CRS indices of the center voxel
+        let p_crs_c : Array1<f32> = array![(self.dim1len/2) as f32, (self.dim2len/2) as f32, (self.dim3len/2) as f32]; // CRS indices of the center voxel
 
-        let p_xyz_c = array![self.p_xyz_c[0], self.p_xyz_c[1], self.p_xyz_c[2]];
+        let p_xyz_c : Array1<f32> = array![self.p_xyz_c[0], self.p_xyz_c[1], self.p_xyz_c[2]];
 
-        let p_xyz_0 = p_xyz_c - (mdc_scaled.dot(&p_crs_c)); // The x,y,z location at CRS=0,0,0 (also known as P0 RAS or 'first voxel RAS').
+        let p_xyz_0 : Array1<f32> = p_xyz_c - (mdc_scaled.dot(&p_crs_c)); // The x,y,z location at CRS=0,0,0 (also known as P0 RAS or 'first voxel RAS').
 
-        // Plug everything together:
+        // Plug everything together into the 4x4 vox2ras matrix:
         let mut m : Array2<f32> = Array::zeros((4, 4));
 
         // Set upper left 3x3 matrix to mdc_scaled.
@@ -315,8 +315,16 @@ mod test {
         assert_eq!(mgh.header.dtype, MRI_UCHAR);
         assert_eq!(mgh.header.is_ras_good, 1);
 
-        // Test vox2ras computation
-        assert_eq!(mgh.header.vox2ras().unwrap().len(), 16);
+        let expected_delta : Array1<f32> = array![1.0, 1.0, 1.0];
+        let expected_mdc : Array2<f32> = Array2::from_shape_vec((3, 3), [-1., 0., 0., 0., 0., -1., 0., 1., 0.].to_vec()).unwrap();
+        let expected_p_xyz_c : Array1<f32> = array![-0.5, 29.4, -48.9];
+
+        let delta : Array1<f32> = Array1::from_vec(mgh.header.delta.to_vec());
+        let mdc : Array2<f32> = Array2::from_shape_vec((3, 3), mgh.header.mdc_raw.to_vec()).unwrap();
+        let p_xyz_c : Array1<f32> = Array1::from_vec(mgh.header.p_xyz_c.to_vec());
+        assert!(delta.all_close(&expected_delta, 1e-5));
+        assert!(mdc.all_close(&expected_mdc, 1e-5));
+        assert!(p_xyz_c.all_close(&expected_p_xyz_c, 1e-5));
 
         // Test MGH data.
         let data = mgh.data.data_mri_uchar.unwrap();
@@ -324,6 +332,24 @@ mod test {
         assert_eq!(data[[99, 99, 99, 0]], 77);   // try on command line: mri_info --voxel 99 99 99 resources/subjects_dir/subject1/mri/brain.mgz
         assert_eq!(data[[109, 109, 109, 0]], 71);
         assert_eq!(data[[0, 0, 0, 0]], 0);
+    }
+
+    #[test]
+    fn the_vox2ras_matrix_can_be_computed() {
+        const MGZ_FILE: &str = "resources/subjects_dir/subject1/mri/brain.mgz";
+        let mgh = read_mgh(MGZ_FILE).unwrap();
+
+        // Test vox2ras computation
+        let vox2ras = mgh.header.vox2ras().unwrap();
+        assert_eq!(vox2ras.len(), 16);
+
+        let expected_vox2ras_ar : Vec<f32> = [-1., 0., 0., 0., 0., 0., -1. ,0. ,0., 1., 0., 0., 127.5, -98.6273, 79.0953, 1.].to_vec();
+        let expected_vox2ras = Array2::from_shape_vec((4, 4), expected_vox2ras_ar).unwrap();
+
+        println!("expected v2r: {}", expected_vox2ras);
+        println!("found v2r: {}", vox2ras);
+
+        assert!(vox2ras.all_close(&expected_vox2ras, 1e-5));
     }
 
     #[test]
