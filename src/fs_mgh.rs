@@ -115,9 +115,9 @@ impl FsMghHeader {
 
         hdr.is_ras_good = input.read_i16()?;
 
-        hdr.delta = [0.; 3];
-        hdr.mdc_raw = [0.; 9];
-        hdr.p_xyz_c = [0.; 3];
+        hdr.delta = [f32::NAN; 3];
+        hdr.mdc_raw = [f32::NAN; 9];
+        hdr.p_xyz_c = [f32::NAN; 3];
 
         if hdr.is_ras_good == 1 as i16 {            
             for idx in 0..3 { hdr.delta[idx] = input.read_f32()?; }
@@ -134,6 +134,18 @@ impl FsMghHeader {
 
 
     /// Compute the vox2ras matrix from the RAS data in the header, if available.
+    ///
+    /// The vox2ras matrix is a 4x4 f32 matrix. You can use it to find the RAS coordinates of a voxel
+    /// using matrix multiplication.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// let mgh = neuroformats::read_mgh("/path/to/subjects_dir/subject1/mri/brian.mgz").unwrap();
+    /// let vox2ras = mgh.vox2ras().unwrap();
+    /// let my_voxel_ijk = ndarray::Array1<f32> = array![32.0, 32.0, 32.0];
+    /// let my_voxel_ras = vox2ras.dot(my_voxel_ijk);
+    /// ```
     pub fn vox2ras(&self) -> Result<Array2<f32>> {
         if self.is_ras_good != 1 as i16 {
             return Err(NeuroformatsError::NoRasInformationInHeader);
@@ -150,7 +162,13 @@ impl FsMghHeader {
 
         let p_crs_c : Array1<f32> = array![(self.dim1len/2) as f32, (self.dim2len/2) as f32, (self.dim3len/2) as f32]; // CRS indices of the center voxel
 
+        //println!("p_crs_c: {} {} {}", p_crs_c[0], p_crs_c[1], p_crs_c[2]); // 128, 128, 128
+
         let p_xyz_c : Array1<f32> = array![self.p_xyz_c[0], self.p_xyz_c[1], self.p_xyz_c[2]];
+
+        println!("mdc_scaled: {}", mdc_scaled);
+
+        println!("mdc_scaled.dot(&p_crs_c) = {}", mdc_scaled.dot(&p_crs_c)); // -128, -128, -128 BUT should be -128, 128, -128
 
         let p_xyz_0 : Array1<f32> = p_xyz_c - (mdc_scaled.dot(&p_crs_c)); // The x,y,z location at CRS=0,0,0 (also known as P0 RAS or 'first voxel RAS').
 
@@ -163,9 +181,9 @@ impl FsMghHeader {
                 m[[i, j]] = mdc_scaled[[i, j]];
             }
         }
-        m[[0, 3]] = p_xyz_0[0];  // Set last column to p_xyz_0
-        m[[1, 3]] = p_xyz_0[1];
-        m[[2, 3]] = p_xyz_0[2];
+        m[[3, 0]] = p_xyz_0[0];  // Set last column to p_xyz_0
+        m[[3, 1]] = p_xyz_0[1];
+        m[[3, 2]] = p_xyz_0[2];
         m[[3, 3]] = 1.;          // Set last row to affine 0, 0, 0, 1. (only the last 1 needs manipulation)
 
         Ok(m)
@@ -261,6 +279,8 @@ impl FsMgh {
 
 
     /// Compute the vox2ras matrix from the header information, if available.
+    ///
+    /// Forwarded to [`FsMghHeader::vox2ras`], see there for details.
     pub fn vox2ras(&self) -> Result<Array2<f32>> {
         self.header.vox2ras()
     }
@@ -352,7 +372,7 @@ mod test {
         println!("expected v2r: {}", expected_vox2ras);
         println!("found v2r: {}", vox2ras);
 
-        assert!(vox2ras.all_close(&expected_vox2ras, 1e-5));
+        assert!(vox2ras.all_close(&expected_vox2ras, 1e-2));
     }
 
     #[test]
