@@ -122,6 +122,14 @@ pub fn a22vec<T: Clone>(a2 : Array2<T>) -> Vec<T> {
 
 impl BrainMesh {
     /// Export a brain mesh to a Wavefront Object (OBJ) format string.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// let surf = neuroformats::read_surf("/path/to/subjects_dir/subject1/surf/lh.white").unwrap();
+    /// let obj_repr = surf.mesh.to_obj();
+    /// std::fs::write("/tmp/lhwhite.obj", obj_repr).expect("Unable to write OBJ mesh file");
+    /// ```
     pub fn to_obj(&self) -> String {
         let mut obj_repr = Vec::<String>::new();
 
@@ -136,6 +144,7 @@ impl BrainMesh {
         let obj_repr = obj_repr.join("");
         obj_repr
     }
+
 
     /// Read a brain mesh from a Wavefront object format (.obj) mesh file.
     ///
@@ -209,7 +218,8 @@ impl BrainMesh {
 /// # Examples
 ///
 /// ```no_run
-/// let surf = neuroformats::read_surf("/path/to/subjects_dir/subject1/surf/lh.white");
+/// let surf = neuroformats::read_surf("/path/to/subjects_dir/subject1/surf/lh.white").unwrap();
+/// let num_verts = surf.mesh.vertices.len();
 /// ```
 pub fn read_surf<P: AsRef<Path> + Copy>(path: P) -> Result<FsSurface> {
     FsSurface::from_file(path)
@@ -298,10 +308,6 @@ mod test {
 
         let obj_repr: String = surf.mesh.to_obj();
         assert_eq!(String::from("v 0.3 0.3 0.3\nv 0.3 0.3 0.3\nv 0.3 0.3 0.3\nv 0.3 0.3 0.3\nv 0.3 0.3 0.3\nf 1 2 4\nf 2 4 5\nf 3 3 3\n"), obj_repr);
-
-        // One could write the OBJ string to a file: 
-        //     use std::fs;
-        //     fs::write("/tmp/tinysurface.obj", obj_repr).expect("Unable to write file");
     }
 
     #[test]
