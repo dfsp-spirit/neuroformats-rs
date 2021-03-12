@@ -309,7 +309,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// let mgh = neuroformats::read_mgh("/path/to/subjects_dir/subject1/mri/brian.mgz").unwrap();
+/// let mgh = neuroformats::read_mgh("/path/to/subjects_dir/subject1/mri/brain.mgz").unwrap();
 /// ```
 pub fn read_mgh<P: AsRef<Path> + Copy>(path: P) -> Result<FsMgh> {
     FsMgh::from_file(path)
