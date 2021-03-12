@@ -15,7 +15,7 @@ use crate::util::read_variable_length_string;
 use crate::error::{NeuroformatsError, Result};
 
 
-use ndarray::{Array, Array2};
+use ndarray::{Array2};
 
 pub const TRIS_MAGIC_FILE_TYPE_NUMBER: i32 = 16777214;
 pub const TRIS_MAGIC_FILE_TYPE_NUMBER_ALTERNATIVE: i32 = 16777215;
@@ -95,11 +95,11 @@ pub struct FsSurface {
     pub mesh: BrainMesh, 
 }
 
-/// A brain mesh, or any other triangular mesh. Vertices are stored as an `nx3` matrix of x,y,z coordinates. The triangular faces are stored as an `mx3` matrix of vertex indices.
+/// A brain mesh, or any other triangular mesh. Vertices are stored as a vector of x,y,z coordinates, where triplets of coordinates represent a vertex. The triangular faces are stored in the same way as a vector of vertex indices.
 #[derive(Debug, PartialEq, Clone)]
 pub struct BrainMesh {
-    pub vertices: Array2<f32>,
-    pub faces: Array2<i32>, 
+    pub vertices: Vec<f32>,
+    pub faces: Vec<i32>, 
 }
 
 
@@ -116,11 +116,14 @@ impl BrainMesh {
     pub fn to_obj(&self) -> String {
         let mut obj_repr = Vec::<String>::new();
 
-        for vrow in self.vertices.genrows() {
+        let vertices = Array2::from_shape_vec((self.vertices.len()/3 as usize, 3 as usize), self.vertices.clone()).unwrap();
+        let faces = Array2::from_shape_vec((self.faces.len()/3 as usize, 3 as usize), self.faces.clone()).unwrap();
+
+        for vrow in vertices.genrows() {
             obj_repr.push(format!("v {} {} {}\n", vrow[0], vrow[1], vrow[2]));
         }
 
-        for frow in self.faces.genrows() {
+        for frow in faces.genrows() {
             obj_repr.push(format!("f {} {} {}\n", frow[0]+1, frow[1]+1, frow[2]+1));
         }
         
@@ -175,12 +178,10 @@ impl BrainMesh {
             return Err(NeuroformatsError::EmptyWavefrontObjectFile);
         }
 
-        let vertices = Array::from_shape_vec((num_vertices as usize, 3 as usize), vertex_data).unwrap();
-        let faces = Array::from_shape_vec((num_faces as usize, 3 as usize), face_data).unwrap();
 
         let mesh = BrainMesh {
-            vertices : vertices,
-            faces : faces
+            vertices : vertex_data,
+            faces : face_data
         };
         Ok(mesh)
     }
@@ -243,18 +244,18 @@ impl FsSurface {
             vertex_data.push(input.read_f32().unwrap());
         }
 
-        let vertices = Array::from_shape_vec((hdr.num_vertices as usize, 3 as usize), vertex_data).unwrap();
+        //let vertices = Array::from_shape_vec((hdr.num_vertices as usize, 3 as usize), vertex_data).unwrap();
 
         let mut face_data : Vec<i32> = Vec::with_capacity((hdr.num_faces * 3) as usize);
         for _ in 1..=hdr.num_faces * 3 {
             face_data.push(input.read_i32().unwrap());
         }
 
-        let faces = Array::from_shape_vec((hdr.num_faces as usize, 3 as usize), face_data).unwrap();
+        //let faces = Array::from_shape_vec((hdr.num_faces as usize, 3 as usize), face_data).unwrap();
 
         let mesh = BrainMesh {
-            vertices : vertices,
-            faces : faces
+            vertices : vertex_data,
+            faces : face_data
         };
 
         mesh
