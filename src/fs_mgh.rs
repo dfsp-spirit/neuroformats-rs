@@ -141,10 +141,11 @@ impl FsMghHeader {
     /// # Examples
     ///
     /// ```no_run
+    /// use ndarray::{Array1, array};
     /// let mgh = neuroformats::read_mgh("/path/to/subjects_dir/subject1/mri/brian.mgz").unwrap();
     /// let vox2ras = mgh.vox2ras().unwrap();
-    /// let my_voxel_ijk = ndarray::Array1<f32> = array![32.0, 32.0, 32.0];
-    /// let my_voxel_ras = vox2ras.dot(my_voxel_ijk);
+    /// let my_voxel_ijk : Array1<f32> = array![32.0, 32.0, 32.0];
+    /// let my_voxel_ras = vox2ras.dot(&my_voxel_ijk);
     /// ```
     pub fn vox2ras(&self) -> Result<Array2<f32>> {
         if self.is_ras_good != 1 as i16 {
@@ -157,20 +158,26 @@ impl FsMghHeader {
         d[[1, 1]] = self.delta[1];
         d[[2, 2]] = self.delta[2];
 
-        let mdc_mat = Array2::from_shape_vec((3, 3), self.mdc_raw.to_vec()).unwrap();
-        let mdc_scaled : Array2<f32> = mdc_mat.dot(&d);          // Scaled by the voxel dimensions (xsize, ysize, zsize)
+        // println!("d: {}", d);  // okay
 
+        let mdc_mat = Array2::from_shape_vec((3, 3), self.mdc_raw.to_vec()).unwrap();
+
+        //println!("mdc_mat: {}", mdc_mat); 
+        let mdc_scaled : Array2<f32> = mdc_mat.dot(&d);          // Scaled by the voxel dimensions (xsize, ysize, zsize): okay
+
+        // The IJK voxel indices of the center.
         let p_crs_c : Array1<f32> = array![(self.dim1len/2) as f32, (self.dim2len/2) as f32, (self.dim3len/2) as f32]; // CRS indices of the center voxel
 
-        //println!("p_crs_c: {} {} {}", p_crs_c[0], p_crs_c[1], p_crs_c[2]); // 128, 128, 128
+        //println!("p_crs_c: {} {} {}", p_crs_c[0], p_crs_c[1], p_crs_c[2]); // 128, 128, 128: okay
 
+        // The RAS coordinates (aka x,y,z) of the center.
         let p_xyz_c : Array1<f32> = array![self.p_xyz_c[0], self.p_xyz_c[1], self.p_xyz_c[2]];
 
         println!("mdc_scaled: {}", mdc_scaled);
 
-        println!("mdc_scaled.dot(&p_crs_c) = {}", mdc_scaled.dot(&p_crs_c)); // -128, -128, -128 BUT should be -128, 128, -128
+        println!("mdc_scaled.dot(&p_crs_c) = {}", mdc_scaled.t().dot(&p_crs_c)); // -128, -128, -128 BUT should be -128, 128, -128 => mdc_sclaed is wrong
 
-        let p_xyz_0 : Array1<f32> = p_xyz_c - (mdc_scaled.dot(&p_crs_c)); // The x,y,z location at CRS=0,0,0 (also known as P0 RAS or 'first voxel RAS').
+        let p_xyz_0 : Array1<f32> = p_xyz_c - (mdc_scaled.t().dot(&p_crs_c)); // The x,y,z location at CRS=0,0,0 (also known as P0 RAS or 'first voxel RAS').
 
         // Plug everything together into the 4x4 vox2ras matrix:
         let mut m : Array2<f32> = Array::zeros((4, 4));
