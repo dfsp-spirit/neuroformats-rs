@@ -41,10 +41,10 @@ pub struct FsMghHeader {
 /// Models the data part of a FreeSurfer MGH file.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FsMghData {
-    pub data_mri_uchar: Option<Array4<u8>>,
-    pub data_mri_float: Option<Array4<f32>>,
-    pub data_mri_int: Option<Array4<i32>>,
-    pub data_mri_short: Option<Array4<i16>>,
+    pub mri_uchar: Option<Array4<u8>>,
+    pub mri_float: Option<Array4<f32>>,
+    pub mri_int: Option<Array4<i32>>,
+    pub mri_short: Option<Array4<i16>>,
 }
 
 /// Models a FreeSurfer MGH file.
@@ -63,7 +63,7 @@ impl Default for FsMghHeader {
             dim2len: 0 as i32,
             dim3len: 0 as i32,
             dim4len: 0 as i32,
-            dtype: 1 as i32,
+            dtype: MRI_INT,
             dof: 0 as i32,
             is_ras_good: 0 as i16,
             delta: [0.; 3],
@@ -262,10 +262,10 @@ impl FsMgh {
         }
 
         let mgh_data = FsMghData {
-            data_mri_uchar : data_mri_uchar,
-            data_mri_int : data_mri_int,
-            data_mri_float : data_mri_float,
-            data_mri_short : data_mri_short,
+            mri_uchar : data_mri_uchar,
+            mri_int : data_mri_int,
+            mri_float : data_mri_float,
+            mri_short : data_mri_short,
         };
         Ok(mgh_data)
     }
@@ -306,10 +306,23 @@ where
 /// single subject (in which case only the 1st dimension is used), or for a group (in which case the first and
 /// second dimensions are used).
 ///
+/// Note that the MGH data can use different data types, and this affects where in the returned [`FsMghData`] part
+/// of the [`FsMgh`] the data can be found. Supported MGH data types are:
+/// 
+/// * MRI_UCHAR (code `0`, maps to Rust datatype `u8`)
+/// * MRI_INT (code `1`, maps to Rust datatype `i32`)
+/// * MRI_FLOAT (code `3`, maps to Rust datatype `f32`)
+/// * MRI_SHORT (code `4`, maps to Rust datatype `i16`).
+/// 
+///
 /// # Examples
+///
+/// Read an MGH file containing raw MRI data (voxel intensities from a scanner) as MRI_UCHAR and access the data:
 ///
 /// ```no_run
 /// let mgh = neuroformats::read_mgh("/path/to/subjects_dir/subject1/mri/brain.mgz").unwrap();
+/// assert_eq!(mgh.header.dtype, neuroformats::MRI_UCHAR);
+/// let voxels = mgh.data.mri_uchar.unwrap();
 /// ```
 pub fn read_mgh<P: AsRef<Path> + Copy>(path: P) -> Result<FsMgh> {
     FsMgh::from_file(path)
@@ -346,7 +359,7 @@ mod test {
         assert!(p_xyz_c.all_close(&expected_p_xyz_c, 1e-5));
 
         // Test MGH data.
-        let data = mgh.data.data_mri_uchar.unwrap();
+        let data = mgh.data.mri_uchar.unwrap();
         assert_eq!(data.ndim(), 4);
         assert_eq!(data[[99, 99, 99, 0]], 77);   // try on command line: mri_info --voxel 99 99 99 resources/subjects_dir/subject1/mri/brain.mgz
         assert_eq!(data[[109, 109, 109, 0]], 71);
