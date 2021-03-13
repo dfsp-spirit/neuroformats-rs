@@ -11,18 +11,20 @@ use std::path::{Path};
 
 use crate::error::{NeuroformatsError, Result};
 
-pub const MGH_VERSION_CODE: i32 = 1;
+const MGH_VERSION_CODE: i32 = 1;
 
-pub const MGH_DATATYPE_NAMES : [&str; 4] = ["MRI_UCHAR", "MRI_INT", "MRI_FLOAT", "MRI_SHORT"];
-pub const MGH_DATATYPE_CODES : [i32; 4] = [0, 1, 3, 4];
+/// FreeSurfer MRI data type for `u8`, used in the `dtype` field of [`FsMghHeader`].
 pub const MRI_UCHAR : i32 = 0;
+/// FreeSurfer MRI data type for `i32`, used in the `dtype` field of [`FsMghHeader`].
 pub const MRI_INT : i32 = 1;
+/// FreeSurfer MRI data type for `f32`, used in the `dtype` field of [`FsMghHeader`].
 pub const MRI_FLOAT : i32 = 3;
+/// FreeSurfer MRI data type for `i16`, used in the `dtype` field of [`FsMghHeader`].
 pub const MRI_SHORT : i32 = 4;
 
-pub const MGH_DATA_START : i32 = 284; // The index in bytes where the data part starts in an MGH file.
+const MGH_DATA_START : i32 = 284; // The index in bytes where the data part starts in an MGH file.
 
-/// Models the header of a FreeSurfer MGH file containing a brain volume.
+/// Models the header of a FreeSurfer MGH file.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FsMghHeader {
     pub mgh_format_version: i32,
@@ -133,21 +135,21 @@ impl FsMghHeader {
     }
 
 
-    /// Compute the vox2ras matrix from the RAS data in the header, if available.
+    /// Compute the ras2vox matrix from the RAS data in the header, if available.
     ///
-    /// The vox2ras matrix is a 4x4 f32 matrix. You can use it to find the RAS coordinates of a voxel
-    /// using matrix multiplication.
+    /// The ras2vox matrix is a 4x4 f32 matrix and the inverse of the [`vox2ras`]. You can use it to find the indices of the voxel at
+    /// a given RAS coordinate by using matrix multiplication.
     ///
     /// # Examples
     ///
     /// ```no_run
     /// use ndarray::{Array1, array};
     /// let mgh = neuroformats::read_mgh("/path/to/subjects_dir/subject1/mri/brain.mgz").unwrap();
-    /// let vox2ras = mgh.vox2ras().unwrap();
-    /// let my_voxel_ijk : Array1<f32> = array![32.0, 32.0, 32.0]; // actually integers, but we use float for matmul.
-    /// let my_voxel_ras = vox2ras.dot(&my_voxel_ijk);
+    /// let ras2vox = mgh.ras2vox().unwrap();
+    /// let my_voxel_ras : Array1<f32> = array![95.500046, -66.62726, 47.09527, 1.0]; // The final 1 is due to homegenous coords.
+    /// let my_voxel_ijk = ras2vox.dot(&my_voxel_ras);
     /// ```
-    pub fn vox2ras(&self) -> Result<Array2<f32>> {
+    pub fn ras2vox(&self) -> Result<Array2<f32>> {
         if self.is_ras_good != 1 as i16 {
             return Err(NeuroformatsError::NoRasInformationInHeader);
         }
@@ -185,6 +187,26 @@ impl FsMghHeader {
         m[[3, 3]] = 1.;          // Set last row to affine 0, 0, 0, 1. (only the last 1 needs manipulation)
 
         Ok(m)
+    }
+
+
+    /// Compute the vox2ras matrix from the RAS data in the header, if available.
+    ///
+    /// The vox2ras matrix is a 4x4 f32 matrix. You can use it to find the RAS coordinates of a voxel
+    /// using matrix multiplication.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use ndarray::{Array1, array};
+    /// let mgh = neuroformats::read_mgh("/path/to/subjects_dir/subject1/mri/brain.mgz").unwrap();
+    /// let vox2ras = mgh.vox2ras().unwrap();
+    /// let my_voxel_ijk : Array1<f32> = array![32.0, 32.0, 32.0, 1.0]; // actually integers, but we use float for matrix multiplication. The final 1 is due to homegenous coords.
+    /// let my_voxel_ras = vox2ras.dot(&my_voxel_ijk);
+    /// ```
+    pub fn vox2ras(&self)-> Result<Array2<f32>> {
+        let ras2vox = self.ras2vox()?;
+        Ok(ras2vox.t().into_owned())
     }
 }
 
@@ -282,6 +304,14 @@ impl FsMgh {
     pub fn vox2ras(&self) -> Result<Array2<f32>> {
         self.header.vox2ras()
     }
+
+
+    /// Compute the ras2vox matrix from the header information, if available.
+    ///
+    /// Forwarded to [`FsMghHeader::ras2vox`], see there for details.
+    pub fn ras2vox(&self) -> Result<Array2<f32>> {
+        self.header.ras2vox()
+    }
 }
 
 
@@ -378,12 +408,18 @@ mod test {
         assert_eq!(vox2ras.len(), 16);
 
         let expected_vox2ras_ar : Vec<f32> = [-1., 0., 0., 0., 0., 0., -1. ,0. ,0., 1., 0., 0., 127.5, -98.6273, 79.0953, 1.].to_vec();
-        let expected_vox2ras = Array2::from_shape_vec((4, 4), expected_vox2ras_ar).unwrap();
-
-        println!("expected v2r: {}", expected_vox2ras);
-        println!("found v2r: {}", vox2ras);
+        let expected_vox2ras = Array2::from_shape_vec((4, 4), expected_vox2ras_ar).unwrap().t().into_owned();
 
         assert!(vox2ras.all_close(&expected_vox2ras, 1e-2));
+
+        println!("vox2ras: {}", vox2ras);
+
+        // Example: Compute the RAS coords for voxel at indices (32, 32, 32).
+        let my_voxel_ijk : Array1<f32> = Array1::from_vec([32.0, 32.0, 32.0, 1.0].to_vec()); // the 4th value in the vector is for homogenous coordinates.
+        let my_voxel_ras = vox2ras.dot(&my_voxel_ijk);        
+
+        let expected_voxel_ras : Array1<f32> = Array1::from_vec([95.500046, -66.62726, 47.09527, 1.0].to_vec());
+        assert!(my_voxel_ras.all_close(&expected_voxel_ras, 1e-2));
     }
 
     #[test]
