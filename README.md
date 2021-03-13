@@ -11,7 +11,7 @@ To use the library in your project, add it as a dependency in your `Cargo.toml` 
 
 ```toml
 [dependencies]
-neuroformats = "0.1.0"
+neuroformats = "0.2.0"
 ```
 
 ## Features
@@ -22,6 +22,7 @@ neuroformats = "0.1.0"
 * Read FreeSurfer brain surface parcellations (like `subject/label/lh.aparc.annot`): `neuroformats::read_annot`
 * Read FreeSurfer brain volumes and other data from MGH and MGZ files: `neuroformats::read_mgh`
 
+Various utility functions are implemented for performing common computations on the returned structs, e.g. computing the vox2ras matrix from the MGH header data or finding all vertices in a brain surface parcellation that belong to a certain brain atlas region.
 
 ## Documentation
 
@@ -35,7 +36,8 @@ Read vertex-wise cortical thickness computed by FreeSurfer:
 
 ```rust
 use neuroformats::read_curv;
-curv = read_curv("subjects_dir/subject1/surf/lh.thickness");
+let curv = read_curv("subjects_dir/subject1/surf/lh.thickness").unwrap();
+let thickness_at_vertex_0 : f32 = curv.data[0];
 ```
 
 You now have a `Vec<f32>` with the cortical thickness values in `curv.data`. The order of the values matches the vertex order of the respective brain surface reconstruction (e.g., the white surface mesh of the left brain hemisphere in `subjects_dir/subject1/surf/lh.white`).
