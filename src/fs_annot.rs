@@ -76,9 +76,9 @@ impl FsAnnotColortable {
 /// Models a FreeSurfer brain surface parcellation from an annot file. This is the result of applying a brain atlas (like Desikan-Killiani) to a subject. The `vertex_indices` are the 0-based indices used in FreeSurfer and should be ignored. The `vertex_labels` field contains the mesh vertices in order, and assigns to each vertex a brain region using the `label` field (not the `id` field!) from the `colortable`. The field `colortable` contains an [`FsAnnotColortable`] struct that describes the brain regions.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FsAnnot {
-    vertex_indices: Vec<i32>, // 0-based indices, not really needed.
-    vertex_labels: Vec<i32>,
-    colortable: FsAnnotColortable,
+    pub vertex_indices: Vec<i32>, // 0-based indices, not really needed as all vertices need to be covered in order.
+    pub vertex_labels: Vec<i32>,
+    pub colortable: FsAnnotColortable,
 }
 
 impl FsAnnot {
@@ -196,10 +196,16 @@ impl FsAnnot {
 /// name, an RGB display color, and a unique identifier. A parcellation is the result of 
 /// applying a brain atlas to the brain surface reconstruction of a subject.
 ///
+/// # See also
+///
+/// One can use the functions [`FsAnnot::regions`], [`FsAnnot::vertex_regions`], and [`FsAnnot::region_vertices`] to
+/// perform common tasks related to brain surface parcellations.
+///
 /// # Examples
 ///
 /// ```no_run
-/// let annot = neuroformats::read_annot("/path/to/subjects_dir/subject1/label/lh.aparc.annot");
+/// let annot = neuroformats::read_annot("/path/to/subjects_dir/subject1/label/lh.aparc.annot").unwrap();
+/// println!("Annotation assigns the {} brain mesh vertices to {} different regions.", annot.vertex_indices.len(), annot.regions().len());
 /// ```
 pub fn read_annot<P: AsRef<Path> + Copy>(path: P) -> Result<FsAnnot> {
     FsAnnot::from_file(path)

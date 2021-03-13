@@ -316,7 +316,10 @@ where
 /// * MRI_INT (code `1`, maps to Rust datatype `i32`)
 /// * MRI_FLOAT (code `3`, maps to Rust datatype `f32`)
 /// * MRI_SHORT (code `4`, maps to Rust datatype `i16`).
+///
+/// # See also
 /// 
+/// The [`FsMghHeader::vox2ras`] function can be used to compute the RAS coordinates of a voxel.
 ///
 /// # Examples
 ///

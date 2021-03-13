@@ -32,7 +32,8 @@ pub struct FsLabel {
 /// # Examples
 ///
 /// ```no_run
-/// let label = neuroformats::read_label("/path/to/subjects_dir/subject1/label/lh.entorhinal_exvivo.label");
+/// let label = neuroformats::read_label("/path/to/subjects_dir/subject1/label/lh.entorhinal_exvivo.label").unwrap();
+/// println!("Vertex #{} has coordinates {} {} {} and is assigned value {}.", label.vertex_index[0], label.coord1[0], label.coord2[0], label.coord3[0], label.value[0]);
 /// ```
 pub fn read_label<P: AsRef<Path>>(path: P) -> Result<FsLabel> {
 

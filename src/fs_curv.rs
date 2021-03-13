@@ -99,7 +99,8 @@ pub struct FsCurv {
 /// # Examples
 ///
 /// ```no_run
-/// let curv = neuroformats::read_curv("/path/to/subjects_dir/subject1/surf/lh.thickness");
+/// let curv = neuroformats::read_curv("/path/to/subjects_dir/subject1/surf/lh.thickness").unwrap();
+/// let thickness_at_vertex_0 : f32 = curv.data[0];
 /// ```
 pub fn read_curv<P: AsRef<Path> + Copy>(path: P) -> Result<FsCurv> {
     FsCurv::from_file(path)
