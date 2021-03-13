@@ -135,21 +135,21 @@ impl FsMghHeader {
     }
 
 
-    /// Compute the ras2vox matrix from the RAS data in the header, if available.
+    /// Compute the vox2ras matrix from the RAS data in the header, if available.
     ///
-    /// The ras2vox matrix is a 4x4 f32 matrix and the inverse of the [`vox2ras`]. You can use it to find the indices of the voxel at
-    /// a given RAS coordinate by using matrix multiplication.
+    /// The vox2ras matrix is a 4x4 f32 matrix. You can use it to find the RAS coordinates of a voxel
+    /// using matrix multiplication. One can inverse this matrix to obtain the ras2vox matrix.
     ///
     /// # Examples
     ///
     /// ```no_run
     /// use ndarray::{Array1, array};
     /// let mgh = neuroformats::read_mgh("/path/to/subjects_dir/subject1/mri/brain.mgz").unwrap();
-    /// let ras2vox = mgh.ras2vox().unwrap();
-    /// let my_voxel_ras : Array1<f32> = array![95.500046, -66.62726, 47.09527, 1.0]; // The final 1 is due to homegenous coords.
-    /// let my_voxel_ijk = ras2vox.dot(&my_voxel_ras);
+    /// let vox2ras = mgh.vox2ras().unwrap();
+    /// let my_voxel_ijk : Array1<f32> = array![32.0, 32.0, 32.0, 1.0]; // actually integers, but we use float for matrix multiplication. The final 1 is due to homegenous coords.
+    /// let my_voxel_ras = vox2ras.dot(&my_voxel_ijk);
     /// ```
-    pub fn ras2vox(&self) -> Result<Array2<f32>> {
+    pub fn vox2ras(&self) -> Result<Array2<f32>> {
         if self.is_ras_good != 1 as i16 {
             return Err(NeuroformatsError::NoRasInformationInHeader);
         }
@@ -186,27 +186,8 @@ impl FsMghHeader {
         m[[3, 2]] = p_xyz_0[2];
         m[[3, 3]] = 1.;          // Set last row to affine 0, 0, 0, 1. (only the last 1 needs manipulation)
 
-        Ok(m)
-    }
-
-
-    /// Compute the vox2ras matrix from the RAS data in the header, if available.
-    ///
-    /// The vox2ras matrix is a 4x4 f32 matrix. You can use it to find the RAS coordinates of a voxel
-    /// using matrix multiplication.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use ndarray::{Array1, array};
-    /// let mgh = neuroformats::read_mgh("/path/to/subjects_dir/subject1/mri/brain.mgz").unwrap();
-    /// let vox2ras = mgh.vox2ras().unwrap();
-    /// let my_voxel_ijk : Array1<f32> = array![32.0, 32.0, 32.0, 1.0]; // actually integers, but we use float for matrix multiplication. The final 1 is due to homegenous coords.
-    /// let my_voxel_ras = vox2ras.dot(&my_voxel_ijk);
-    /// ```
-    pub fn vox2ras(&self)-> Result<Array2<f32>> {
-        let ras2vox = self.ras2vox()?;
-        Ok(ras2vox.t().into_owned())
+        let v2r = m.t().into_owned();
+        Ok(v2r)
     }
 }
 
@@ -303,14 +284,6 @@ impl FsMgh {
     /// Forwarded to [`FsMghHeader::vox2ras`], see there for details.
     pub fn vox2ras(&self) -> Result<Array2<f32>> {
         self.header.vox2ras()
-    }
-
-
-    /// Compute the ras2vox matrix from the header information, if available.
-    ///
-    /// Forwarded to [`FsMghHeader::ras2vox`], see there for details.
-    pub fn ras2vox(&self) -> Result<Array2<f32>> {
-        self.header.ras2vox()
     }
 }
 
@@ -412,9 +385,7 @@ mod test {
 
         assert!(vox2ras.all_close(&expected_vox2ras, 1e-2));
 
-        println!("vox2ras: {}", vox2ras);
-
-        // Example: Compute the RAS coords for voxel at indices (32, 32, 32).
+        // Example: Use the vox2ras matrix to compute the RAS coords for voxel at indices (32, 32, 32).
         let my_voxel_ijk : Array1<f32> = Array1::from_vec([32.0, 32.0, 32.0, 1.0].to_vec()); // the 4th value in the vector is for homogenous coordinates.
         let my_voxel_ras = vox2ras.dot(&my_voxel_ijk);        
 
