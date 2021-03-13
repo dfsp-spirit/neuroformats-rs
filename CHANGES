@@ -1,10 +1,14 @@
-neuroFormats Changes
+neuroformats Changes
 =====================
 
 
 Version 0.2.0
 -------------
 - Support reading FreeSurfer brain volumes and other data from MGH and MGZ files: `neuroformats::read_mgh`
+- Support computation of vox2ras matrix for FsMgh structs: `neuroformats::FsMgh::vox2ras`
+- BUGFIX: Make the fields of the `FsAnnot` struct public
+- BREAKING: The fields `vertices` and `faces` of the `BrainMesh` struct have a new type. The type was `ndarray::Array2<f32>` before, and is now `Vec<f32>`. To restore the old behaviour, convert the vector using `ndarray::Array2::from_shape_vec`.
+- Better documentation: more examples, cross links, and improved doc strings.
 
 
 Version 0.1.0
