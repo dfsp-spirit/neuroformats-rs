@@ -50,3 +50,47 @@ where
     Ok(info_line)
 }
 
+
+/// Determine the minimum and maximum value of an `f32` vector.
+///
+/// There most likely is some standard way to do this in
+/// Rust which I have not yet discovered. Please file an issue
+/// if you know it and read this. ;)
+///
+/// # Panics
+///
+/// If the `data` input vector is empty or contains nan values.
+///
+pub fn vec32minmax(data : &Vec<f32>, remove_nan: Option<bool>) -> [f32; 2] {
+    let remove_nan = remove_nan.unwrap_or(false);
+    if (*data).is_empty() {
+        panic!("Input data must not be empty.");
+    }
+
+    let mut curv_data_sorted : Vec<f32> = Vec::with_capacity(data.len()); // May slightly over-allocate if NaNs present.
+
+    let mut has_nan : bool = false;
+    if remove_nan {
+        for v in data {
+            if !v.is_nan() {
+                curv_data_sorted.push(*v);
+            } else {
+                has_nan = true;
+            }
+        }
+    }
+
+    if ! remove_nan {
+        if has_nan {
+            panic!("NaN values not allowed in input.");
+        } else {
+            curv_data_sorted = data.to_vec();
+        }  
+    }
+    
+    // Sort   
+    curv_data_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let min: f32 = curv_data_sorted[0];
+    let max: f32 = curv_data_sorted[curv_data_sorted.len() - 1];
+    [min, max]
+}

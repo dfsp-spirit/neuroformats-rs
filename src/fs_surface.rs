@@ -11,11 +11,12 @@ use std::{fs::File};
 use std::io::{BufReader, BufRead, Read, Seek};
 use std::path::{Path};
 
-use crate::util::read_variable_length_string;
+use crate::util::{read_variable_length_string};
 use crate::error::{NeuroformatsError, Result};
 
 
-use ndarray::{Array2};
+use ndarray::{Array2, array, s};
+use ndarray_stats::QuantileExt;
 
 pub const TRIS_MAGIC_FILE_TYPE_NUMBER: i32 = 16777214;
 pub const TRIS_MAGIC_FILE_TYPE_NUMBER_ALTERNATIVE: i32 = 16777215;
@@ -168,7 +169,7 @@ impl BrainMesh {
                 face_data.push(iter.next().unwrap().parse::<i32>().unwrap());
                 face_data.push(iter.next().unwrap().parse::<i32>().unwrap());
             } else if entry_type == "#" {
-                continue; // a comment line.
+                continue; // Ignore comment lines.
             } else {
                 return Err(NeuroformatsError::InvalidWavefrontObjectFormat);
             }                
@@ -184,6 +185,56 @@ impl BrainMesh {
             faces : face_data
         };
         Ok(mesh)
+    }
+
+
+    /// Compute the min and max coordinates for the x, y, and z axes of the mesh.
+    ///
+    /// # Panics
+    ///
+    /// If the min and max coordinates for the axes cannot be computed. E.g., when the mesh contains no vertices or invalid vertex coordinates like NAN values.
+    ///
+    /// # Return value
+    ///
+    /// The 6 values in the returned tuple are, in the following order: (min_x, max_x, min_y, max_y, min_z, max_z).
+    pub fn axes_min_max_coords(&self) -> (f32, f32, f32, f32, f32, f32) {
+        let all_coords = Array2::from_shape_vec((self.vertices.len()/3 as usize, 3 as usize), self.vertices.clone()).unwrap();
+        let x_coords =  all_coords.slice(s![.., 0]);
+        let y_coords =  all_coords.slice(s![.., 1]);
+        let z_coords =  all_coords.slice(s![.., 2]);
+
+        //assert_eq!(x_coords.len(), self.vertices.len()/3 as usize);
+
+        let min_x = x_coords.min().unwrap().clone(); // min() on ndarray::ArrayBase is available from ndarray-stats quantile trait
+        let max_x = x_coords.max().unwrap().clone(); 
+
+        let min_y = y_coords.min().unwrap().clone();
+        let max_y = y_coords.max().unwrap().clone(); 
+
+        let min_z = z_coords.min().unwrap().clone();
+        let max_z = z_coords.max().unwrap().clone(); 
+        
+        (min_x, max_x, min_y, max_y, min_z, max_z)
+    }
+
+
+    /// Compute the center of the mesh.
+    ///
+    /// The center is simply the mean of the min and max values for the x, y and z axes. So this is NOT the center of mass.
+    ///
+    /// # Panics
+    ///
+    /// If the `mean` of the min and max coordinates cannot be computed. E.g., when the mesh contains no vertices or invalid vertex coordinates like NAN values.
+    ///
+    /// # Return value
+    ///
+    /// The 3 values in the returned tuple are the x, y and z coordinates of the center, in that order.
+    pub fn center(&self)  -> (f32, f32, f32) {
+        let (min_x, max_x, min_y, max_y, min_z, max_z) = self.axes_min_max_coords();
+        let cx = array![min_x, max_x].mean().unwrap();
+        let cy = array![min_y, max_y].mean().unwrap();
+        let cz = array![min_z, max_z].mean().unwrap();
+        (cx, cy, cz)
     }
 
 
@@ -266,6 +317,7 @@ impl FsSurface {
 #[cfg(test)]
 mod test { 
     use super::*;
+    use approx::assert_abs_diff_eq;
 
     #[test]
     fn the_demo_surf_file_can_be_read() {
@@ -277,6 +329,26 @@ mod test {
     
         assert_eq!(149244 * 3, surf.mesh.vertices.len());
         assert_eq!(298484 * 3, surf.mesh.faces.len());
+    }
+
+    #[test]
+    fn the_center_and_min_max_coords_of_a_brainmesh_can_be_computed() {
+        const SURF_FILE: &str = "resources/subjects_dir/subject1/surf/lh.white";
+        let surf = read_surf(SURF_FILE).unwrap();
+
+        let expected_min_max : (f32, f32, f32, f32, f32, f32) = (-60.6363, 5.589893, -108.62039, 58.73302, -8.280799, 106.17429);
+        
+        assert_abs_diff_eq!(expected_min_max.0, surf.mesh.axes_min_max_coords().0, epsilon = 1e-8);
+        assert_abs_diff_eq!(expected_min_max.1, surf.mesh.axes_min_max_coords().1, epsilon = 1e-8);
+        assert_abs_diff_eq!(expected_min_max.2, surf.mesh.axes_min_max_coords().2, epsilon = 1e-8);
+        assert_abs_diff_eq!(expected_min_max.3, surf.mesh.axes_min_max_coords().3, epsilon = 1e-8);
+        assert_abs_diff_eq!(expected_min_max.4, surf.mesh.axes_min_max_coords().4, epsilon = 1e-8);
+        assert_abs_diff_eq!(expected_min_max.5, surf.mesh.axes_min_max_coords().5, epsilon = 1e-8);
+
+        let expected_center : (f32, f32, f32) = (-27.523203, -24.943686, 48.946747);
+        assert_abs_diff_eq!(expected_center.0, surf.mesh.center().0, epsilon = 1e-8);
+        assert_abs_diff_eq!(expected_center.1, surf.mesh.center().1, epsilon = 1e-8);
+        assert_abs_diff_eq!(expected_center.2, surf.mesh.center().2, epsilon = 1e-8);
     }
 
     #[test]
