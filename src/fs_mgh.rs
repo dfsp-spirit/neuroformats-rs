@@ -337,6 +337,8 @@ pub fn read_mgh<P: AsRef<Path> + Copy>(path: P) -> Result<FsMgh> {
 
 #[cfg(test)]
 mod test { 
+    use approx::AbsDiffEq;
+
     use super::*;
 
     #[test]
@@ -360,9 +362,9 @@ mod test {
         let mdc : Array2<f32> = Array2::from_shape_vec((3, 3), mgh.header.mdc_raw.to_vec()).unwrap();
         let p_xyz_c : Array1<f32> = Array1::from(mgh.header.p_xyz_c.to_vec());
 
-        assert!(delta.all_close(&expected_delta, 1e-5));
-        assert!(mdc.all_close(&expected_mdc, 1e-5));
-        assert!(p_xyz_c.all_close(&expected_p_xyz_c, 1e-5));
+        assert!(delta.abs_diff_eq(&expected_delta, 1e-5));
+        assert!(mdc.abs_diff_eq(&expected_mdc, 1e-5));
+        assert!(p_xyz_c.abs_diff_eq(&expected_p_xyz_c, 1e-5));
 
         // Test MGH data.
         let data = mgh.data.mri_uchar.unwrap();
@@ -386,14 +388,14 @@ mod test {
         let expected_vox2ras_ar : Vec<f32> = [-1., 0., 0., 0., 0., 0., -1. ,0. ,0., 1., 0., 0., 127.5, -98.6273, 79.0953, 1.].to_vec();
         let expected_vox2ras = Array2::from_shape_vec((4, 4), expected_vox2ras_ar).unwrap().t().into_owned();
 
-        assert!(vox2ras.all_close(&expected_vox2ras, 1e-2));
+        assert!(vox2ras.abs_diff_eq(&expected_vox2ras, 1e-2));
 
         // Example: Use the vox2ras matrix to compute the RAS coords for voxel at indices (32, 32, 32).
         let my_voxel_ijk : Array1<f32> = Array1::from([32.0, 32.0, 32.0, 1.0].to_vec()); // the 4th value in the vector is for homogenous coordinates.
         let my_voxel_ras = vox2ras.dot(&my_voxel_ijk);        
 
         let expected_voxel_ras : Array1<f32> = Array1::from([95.500046, -66.62726, 47.09527, 1.0].to_vec());
-        assert!(my_voxel_ras.all_close(&expected_voxel_ras, 1e-2));
+        assert!(my_voxel_ras.abs_diff_eq(&expected_voxel_ras, 1e-2));
     }
 
     #[test]
