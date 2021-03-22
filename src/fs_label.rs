@@ -8,9 +8,11 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path};
+use std::fmt;
 
 
 use crate::error::{NeuroformatsError, Result};
+use crate::util::vec32minmax;
 
 
 #[derive(Debug, Clone, PartialEq)]
@@ -20,6 +22,13 @@ pub struct FsLabel {
     pub coord2: Vec<f32>,
     pub coord3: Vec<f32>,
     pub value: Vec<f32>,
+}
+
+
+impl fmt::Display for FsLabel {    
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {        
+        write!(f, "Label for {} vertices/voxels, with label values in range {} to {}.", self.vertex_index.len(), vec32minmax(&self.value, false).0, vec32minmax(&self.value, false).1)
+    }
 }
 
 

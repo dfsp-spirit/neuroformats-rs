@@ -10,8 +10,9 @@ use flate2::bufread::GzDecoder;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path};
+use std::fmt;
 
-use crate::util::is_gz_file;
+use crate::util::{is_gz_file, vec32minmax};
 use crate::error::{NeuroformatsError, Result};
 
 
@@ -88,6 +89,14 @@ pub struct FsCurv {
     pub header: FsCurvHeader,
     pub data: Vec<f32>, 
 }
+
+
+impl fmt::Display for FsCurv {    
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {        
+        write!(f, "Per-vertex data for {} vertices, with values in range {} to {}.", self.data.len(), vec32minmax(&self.data, false).0, vec32minmax(&self.data, false).1)
+    }
+}
+
 
 /// Read per-vertex data from a FreeSurfer curv file.
 ///
