@@ -356,9 +356,9 @@ mod test {
         let expected_mdc : Array2<f32> = Array2::from_shape_vec((3, 3), [-1., 0., 0., 0., 0., -1., 0., 1., 0.].to_vec()).unwrap();
         let expected_p_xyz_c : Array1<f32> = array![-0.49995422, 29.372742, -48.90473];
 
-        let delta : Array1<f32> = Array1::from_vec(mgh.header.delta.to_vec());
+        let delta : Array1<f32> = Array1::from(mgh.header.delta.to_vec());
         let mdc : Array2<f32> = Array2::from_shape_vec((3, 3), mgh.header.mdc_raw.to_vec()).unwrap();
-        let p_xyz_c : Array1<f32> = Array1::from_vec(mgh.header.p_xyz_c.to_vec());
+        let p_xyz_c : Array1<f32> = Array1::from(mgh.header.p_xyz_c.to_vec());
 
         assert!(delta.all_close(&expected_delta, 1e-5));
         assert!(mdc.all_close(&expected_mdc, 1e-5));
@@ -389,10 +389,10 @@ mod test {
         assert!(vox2ras.all_close(&expected_vox2ras, 1e-2));
 
         // Example: Use the vox2ras matrix to compute the RAS coords for voxel at indices (32, 32, 32).
-        let my_voxel_ijk : Array1<f32> = Array1::from_vec([32.0, 32.0, 32.0, 1.0].to_vec()); // the 4th value in the vector is for homogenous coordinates.
+        let my_voxel_ijk : Array1<f32> = Array1::from([32.0, 32.0, 32.0, 1.0].to_vec()); // the 4th value in the vector is for homogenous coordinates.
         let my_voxel_ras = vox2ras.dot(&my_voxel_ijk);        
 
-        let expected_voxel_ras : Array1<f32> = Array1::from_vec([95.500046, -66.62726, 47.09527, 1.0].to_vec());
+        let expected_voxel_ras : Array1<f32> = Array1::from([95.500046, -66.62726, 47.09527, 1.0].to_vec());
         assert!(my_voxel_ras.all_close(&expected_voxel_ras, 1e-2));
     }
 
