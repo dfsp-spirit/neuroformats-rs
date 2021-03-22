@@ -169,10 +169,10 @@ mod test {
         assert_eq!(1, curv.header.num_values_per_vertex);
         assert_eq!(149244, curv.data.len());        
 
-        let mut curv_data_sorted = curv.data.to_vec();
-        curv_data_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        let min: f32 = curv_data_sorted[0];
-        let max: f32 = curv_data_sorted[curv_data_sorted.len() - 1];
+        use crate::util::vec32minmax;
+        let mm = vec32minmax(&curv.data, false);
+        let min = mm[0];
+        let max = mm[1];
         assert_abs_diff_eq!(0.0, min, epsilon = 1e-10);
         assert_abs_diff_eq!(5.0, max, epsilon = 1e-10);
     }
