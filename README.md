@@ -11,12 +11,12 @@ To use the library in your project, add it as a dependency in your `Cargo.toml` 
 
 ```toml
 [dependencies]
-neuroformats = "0.2.0"
+neuroformats = "0.2.1"
 ```
 
 ## Features
 
-* Read FreeSurfer per-vertex data in curv format (like `subject/surf/lh.thickness`): function `neuroformats::read_curv`
+* Read and write FreeSurfer per-vertex data in curv format (like `subject/surf/lh.thickness`): functions `neuroformats::read_curv` and `neuroformats::write_curv`
 * Read brain meshes in FreeSurfer binary mesh format (like `subject/surf/lh.white`): `neuroformats::read_surf`
 * Read FreeSurfer label files (like `subject/label/lh.cortex.label`): `neuroformats::read_label`
 * Read FreeSurfer brain surface parcellations (like `subject/label/lh.aparc.annot`): `neuroformats::read_annot`
@@ -61,4 +61,4 @@ The `neuroformats` crate is free software, dual-licensed under the [MIT](./LICEN
 
 If you have trouble or found a bug, please [open an issue](https://github.com/dfsp-spirit/neuroformats-rs/issues) here on Github.
 
-The `neuroformats` crate was written by [Tim Schäfer](http://rcmd.org/ts/). You can find my email address on my website if you need to contact me in person.
+The `neuroformats` crate was written by [Tim Schäfer](http://rcmd.org/ts/). You can find my email address on my website if you need to contact me.
