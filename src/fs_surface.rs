@@ -205,7 +205,7 @@ impl BrainMesh {
 
         //assert_eq!(x_coords.len(), self.vertices.len()/3 as usize);
 
-        let min_x = x_coords.min().unwrap().clone(); // min() on ndarray::ArrayBase is available from ndarray-stats quantile trait
+        let min_x = x_coords.min().unwrap().clone(); // min() on type ndarray::ArrayBase is available from ndarray-stats Quantile trait
         let max_x = x_coords.max().unwrap().clone(); 
 
         let min_y = y_coords.min().unwrap().clone();

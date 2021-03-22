@@ -2,6 +2,15 @@ neuroformats Changes
 =====================
 
 
+Version 0.2.1
+-------------
+- Support writing per-vertex data to files in FreeSurfer 'curv' format.
+- Add methods to compute mesh center and extends for struct `neuroformats::BrainMesh`.
+- Update dependency versions: ndarray 0.14 (up from 0.12.1) and adapt code: replace calls to now deprecated methods.
+- New dependency: ndarray-stats 0.4.0.
+- Implement Display trait for structs FsLabel and FsCurv.
+
+
 Version 0.2.0
 -------------
 - Support reading FreeSurfer brain volumes and other data from MGH and MGZ files: `neuroformats::read_mgh`

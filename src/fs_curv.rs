@@ -4,11 +4,11 @@
 //! for each vertex of the respective brain surface mesh.
 
 
-use byteordered::{ByteOrdered};
+use byteordered::{ByteOrdered, Endianness};
 use flate2::bufread::GzDecoder;
 
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, Read, BufWriter};
 use std::path::{Path};
 use std::fmt;
 
@@ -115,6 +115,23 @@ pub fn read_curv<P: AsRef<Path> + Copy>(path: P) -> Result<FsCurv> {
     FsCurv::from_file(path)
 }
 
+/// Write an FsCurv struct to a file in FreeSurfer curv format.
+pub fn write_curv<P: AsRef<Path> + Copy>(path: P, curv : &FsCurv) {
+    let f = File::create(path).expect("Unable to create curv file");
+    let f = BufWriter::new(f);  
+    let mut f  =  ByteOrdered::runtime(f, Endianness::Big); 
+    f.write_u8(CURV_MAGIC_CODE_U8).unwrap();
+    f.write_u8(CURV_MAGIC_CODE_U8).unwrap();
+    f.write_u8(CURV_MAGIC_CODE_U8).unwrap();
+    f.write_i32(curv.header.num_vertices).unwrap();
+    f.write_i32(curv.header.num_faces).unwrap();
+    f.write_i32(curv.header.num_values_per_vertex).unwrap();
+
+    for v in &curv.data {
+        f.write_f32(*v).unwrap();
+    }
+}
+
 
 impl FsCurv {
     /// Read a Curvfile.
@@ -167,6 +184,7 @@ impl FsCurv {
 mod test { 
     use super::*;
     use approx::assert_abs_diff_eq;
+    use tempfile::{tempdir};
 
     #[test]
     fn the_demo_curv_file_can_be_read() {
@@ -180,6 +198,30 @@ mod test {
 
         use crate::util::vec32minmax;
         let (min, max) = vec32minmax(&curv.data, false);
+        assert_abs_diff_eq!(0.0, min, epsilon = 1e-10);
+        assert_abs_diff_eq!(5.0, max, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn a_curv_file_can_be_written_and_reread() {
+        const CURV_FILE: &str = "resources/subjects_dir/subject1/surf/lh.thickness";
+        let curv = read_curv(CURV_FILE).unwrap();
+
+        let dir = tempdir().unwrap();
+
+        let tfile_path = dir.path().join("temp-curv-file.curv");
+        let tfile_path = tfile_path.to_str().unwrap();
+        write_curv(tfile_path, &curv);
+
+        let curv_re = read_curv(tfile_path).unwrap();
+
+        assert_eq!(149244, curv_re.header.num_vertices);
+        assert_eq!(298484, curv_re.header.num_faces);
+        assert_eq!(1, curv_re.header.num_values_per_vertex);
+        assert_eq!(149244, curv_re.data.len());        
+
+        use crate::util::vec32minmax;
+        let (min, max) = vec32minmax(&curv_re.data, false);
         assert_abs_diff_eq!(0.0, min, epsilon = 1e-10);
         assert_abs_diff_eq!(5.0, max, epsilon = 1e-10);
     }
