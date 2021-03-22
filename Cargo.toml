@@ -26,5 +26,9 @@ default-features = true
 features = ["approx"]
 
 
+[profile.dev]
+opt-level = 3
+
+
 
 

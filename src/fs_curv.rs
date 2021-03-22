@@ -170,9 +170,7 @@ mod test {
         assert_eq!(149244, curv.data.len());        
 
         use crate::util::vec32minmax;
-        let mm = vec32minmax(&curv.data, false);
-        let min = mm[0];
-        let max = mm[1];
+        let (min, max) = vec32minmax(&curv.data, false);
         assert_abs_diff_eq!(0.0, min, epsilon = 1e-10);
         assert_abs_diff_eq!(5.0, max, epsilon = 1e-10);
     }

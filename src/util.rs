@@ -61,7 +61,10 @@ where
 ///
 /// If the `data` input vector is empty or contains nan values.
 ///
-pub fn vec32minmax(data : &Vec<f32>, remove_nan: bool) -> [f32; 2] {
+/// # Return value
+///
+/// A tuple of length 2, the first value is the minimum, the second the maximum.
+pub fn vec32minmax(data : &Vec<f32>, remove_nan: bool) -> (f32, f32) {
     if (*data).is_empty() {
         panic!("Input data must not be empty.");
     }
@@ -91,7 +94,7 @@ pub fn vec32minmax(data : &Vec<f32>, remove_nan: bool) -> [f32; 2] {
     curv_data_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let min: f32 = curv_data_sorted[0];
     let max: f32 = curv_data_sorted[curv_data_sorted.len() - 1];
-    [min, max]
+    (min, max)
 }
 
 
@@ -105,17 +108,17 @@ mod test {
     fn the_min_and_max_of_an_f32_vector_without_nan_values_can_be_computed() {
 
         let v : Vec<f32> = vec![0.4, 0.5, 0.9, 0.01];
-        let mm = vec32minmax(&v, false);
-        assert_abs_diff_eq!(mm[0], 0.01, epsilon = 1e-8);
-        assert_abs_diff_eq!(mm[1], 0.9, epsilon = 1e-8);
+        let (min, max) = vec32minmax(&v, true);
+        assert_abs_diff_eq!(min, 0.01, epsilon = 1e-8);
+        assert_abs_diff_eq!(max, 0.9, epsilon = 1e-8);
     }
 
     #[test]
     fn the_min_and_max_of_an_f32_vector_with_nan_values_can_be_computed() {
 
         let v : Vec<f32> = vec![0.4, 0.5, 0.9, std::f32::NAN, 0.01];
-        let mm = vec32minmax(&v, true);
-        assert_abs_diff_eq!(mm[0], 0.01, epsilon = 1e-8);
-        assert_abs_diff_eq!(mm[1], 0.9, epsilon = 1e-8);
+        let (min, max) = vec32minmax(&v, true);
+        assert_abs_diff_eq!(min, 0.01, epsilon = 1e-8);
+        assert_abs_diff_eq!(max, 0.9, epsilon = 1e-8);
     }
 }

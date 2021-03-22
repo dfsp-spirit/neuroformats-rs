@@ -346,9 +346,10 @@ mod test {
         assert_abs_diff_eq!(expected_min_max.5, surf.mesh.axes_min_max_coords().5, epsilon = 1e-8);
 
         let expected_center : (f32, f32, f32) = (-27.523203, -24.943686, 48.946747);
-        assert_abs_diff_eq!(expected_center.0, surf.mesh.center().0, epsilon = 1e-8);
-        assert_abs_diff_eq!(expected_center.1, surf.mesh.center().1, epsilon = 1e-8);
-        assert_abs_diff_eq!(expected_center.2, surf.mesh.center().2, epsilon = 1e-8);
+        let (cx, cy, cz) = surf.mesh.center();
+        assert_abs_diff_eq!(expected_center.0, cx, epsilon = 1e-8);
+        assert_abs_diff_eq!(expected_center.1, cy, epsilon = 1e-8);
+        assert_abs_diff_eq!(expected_center.2, cz, epsilon = 1e-8);
     }
 
     #[test]
