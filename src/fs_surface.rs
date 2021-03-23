@@ -83,7 +83,7 @@ impl FsSurfaceHeader {
 ///
 /// # Panics
 ///
-/// If the min and max coordinates for the axes cannot be computed. E.g., when the coordinate vector is empty or contains invalid vertex coordinates like NAN values.
+/// If the min and max coordinates for the axes cannot be computed. E.g., when the coordinate vector is empty, has a length that is not a multiple of 3, or contains invalid vertex coordinates like `NAN` values.
 ///
 /// # Return value
 ///
@@ -126,7 +126,7 @@ pub fn coord_extrema(coords : &Vec<f32>) -> Result<(f32, f32, f32, f32, f32, f32
 ///
 /// # Panics
 ///
-/// If the `mean` of the min and max coordinates cannot be computed. E.g., when the mesh contains no vertices or invalid vertex coordinates like NAN values.
+/// If the `mean` of the min and max coordinates cannot be computed. E.g., when coords vector is empty, has a length that is not a multiple of 3, or contains invalid vertex coordinates like `NAN` values.
 ///
 /// # Return value
 ///
