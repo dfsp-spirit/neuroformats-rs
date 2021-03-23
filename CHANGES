@@ -1,6 +1,11 @@
 neuroformats Changes
 =====================
 
+Version 0.2.2
+-------------
+- Implement Display trait for structs FsAnnot, FsAnnotColortable, FsMgh, FsSurface and BrainMesh.
+- Add basic mesh utility functions `coord_extrema` and `coord_center`.
+
 
 Version 0.2.1
 -------------
