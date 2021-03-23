@@ -93,7 +93,7 @@ impl FsSurfaceHeader {
 ///
 /// ```no_run
 /// let coords: Vec<f32> = vec![0.0, 0.1, 0.2, 0.3, 0.3, 0.3, 1.0, 2.0, 4.0];
-/// let (minx, maxx, miny, maxy, minz, maxz) = coord_extrema(&coords).unwrap();
+/// let (minx, maxx, miny, maxy, minz, maxz) = neuroformats::fs_surface::coord_extrema(&coords).unwrap();
 /// assert_eq!(0.0, minx);
 /// assert_eq!(0.1, miny);
 /// assert_eq!(0.2, minz);
@@ -136,7 +136,7 @@ pub fn coord_extrema(coords : &Vec<f32>) -> Result<(f32, f32, f32, f32, f32, f32
 ///
 /// ```no_run
 /// let coords: Vec<f32> = vec![0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 1.0, 2.0, 4.0];
-/// let (cx, cy, cz) = coord_center(&coords).unwrap();
+/// let (cx, cy, cz) = neuroformats::fs_surface::coord_center(&coords).unwrap();
 /// assert_eq!(0.5, cx);
 /// assert_eq!(1.0, cy);
 /// assert_eq!(2.0, cz);
@@ -447,7 +447,7 @@ mod test {
     #[test]
     fn the_coord_center_can_be_computed() {
         let coords: Vec<f32> = vec![0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 0.5, 0.5, 0.5, 0.9, 0.9, 0.9, 0.95, 0.95, 0.95, 1.0, 2.0, 4.0];
-        let (cx, cy, cz) = coord_center(&coords).unwrap();
+        let (cx, cy, cz) = crate::fs_surface::coord_center(&coords).unwrap();
         assert_eq!(0.5, cx);
         assert_eq!(1.0, cy);
         assert_eq!(2.0, cz);
@@ -457,7 +457,7 @@ mod test {
     #[test]
     fn the_coord_extrema_can_be_computed() {
         let coords: Vec<f32> = vec![0.0, 0.1, 0.2, 0.3, 0.3, 0.3, 0.5, 0.5, 0.5, 0.9, 0.9, 0.9, 0.95, 0.95, 0.95, 1.0, 2.0, 4.0];
-        let (minx, maxx, miny, maxy, minz, maxz) = coord_extrema(&coords).unwrap();
+        let (minx, maxx, miny, maxy, minz, maxz) = crate::fs_surface::coord_extrema(&coords).unwrap();
         assert_eq!(0.0, minx);
         assert_eq!(0.1, miny);
         assert_eq!(0.2, minz);
