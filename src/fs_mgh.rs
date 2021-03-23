@@ -8,6 +8,7 @@ use ndarray::{Array, Array1, Array2, Array4, Dim, array};
 use std::{fs::File};
 use std::io::{BufReader, Read};
 use std::path::{Path};
+use std::fmt;
 
 use crate::error::{NeuroformatsError, Result};
 
@@ -332,6 +333,13 @@ where
 /// ```
 pub fn read_mgh<P: AsRef<Path> + Copy>(path: P) -> Result<FsMgh> {
     FsMgh::from_file(path)
+}
+
+
+impl fmt::Display for FsMgh {    
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {        
+        write!(f, "FreeSurfer 4D MRI data with dim {}, {}, {}, {} and RAS flag: {}.", self.header.dim1len, self.header.dim2len, self.header.dim3len, self.header.dim4len, self.header.is_ras_good)
+    }
 }
 
 

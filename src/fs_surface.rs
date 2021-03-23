@@ -10,6 +10,7 @@ use byteordered::{ByteOrdered};
 use std::{fs::File};
 use std::io::{BufReader, BufRead, Read, Seek};
 use std::path::{Path};
+use std::fmt;
 
 use crate::util::{read_variable_length_string};
 use crate::error::{NeuroformatsError, Result};
@@ -75,6 +76,56 @@ impl FsSurfaceHeader {
             Ok(hdr)
         }
     }
+}
+
+
+/// Compute the min and max coordinates for the x, y, and z axes.
+///
+/// # Panics
+///
+/// If the min and max coordinates for the axes cannot be computed. E.g., when the coordinate vector is empty or contains invalid vertex coordinates like NAN values.
+///
+/// # Return value
+///
+/// The 6 values in the returned tuple are, in the following order: (min_x, max_x, min_y, max_y, min_z, max_z).
+pub fn coord_extrema(coords : &Vec<f32>) -> (f32, f32, f32, f32, f32, f32) {
+    let all_coords = Array2::from_shape_vec((coords.len()/3 as usize, 3 as usize), coords.clone()).unwrap();
+    let x_coords =  all_coords.slice(s![.., 0]);
+    let y_coords =  all_coords.slice(s![.., 1]);
+    let z_coords =  all_coords.slice(s![.., 2]);
+
+    //assert_eq!(x_coords.len(), self.vertices.len()/3 as usize);
+
+    let min_x = x_coords.min().unwrap().clone(); // min() on type ndarray::ArrayBase is available from ndarray-stats Quantile trait
+    let max_x = x_coords.max().unwrap().clone(); 
+
+    let min_y = y_coords.min().unwrap().clone();
+    let max_y = y_coords.max().unwrap().clone(); 
+
+    let min_z = z_coords.min().unwrap().clone();
+    let max_z = z_coords.max().unwrap().clone(); 
+    
+    (min_x, max_x, min_y, max_y, min_z, max_z)
+}
+
+
+/// Compute the center of the given coordinates.
+///
+/// The center is simply the mean of the min and max values for the x, y and z axes. So this is NOT the center of mass.
+///
+/// # Panics
+///
+/// If the `mean` of the min and max coordinates cannot be computed. E.g., when the mesh contains no vertices or invalid vertex coordinates like NAN values.
+///
+/// # Return value
+///
+/// The 3 values in the returned tuple are the x, y and z coordinates of the center, in that order.
+pub fn coord_center(coords : &Vec<f32>)  -> (f32, f32, f32) {
+    let (min_x, max_x, min_y, max_y, min_z, max_z) = coord_extrema(coords);
+    let cx = array![min_x, max_x].mean().unwrap();
+    let cy = array![min_y, max_y].mean().unwrap();
+    let cz = array![min_z, max_z].mean().unwrap();
+    (cx, cy, cz)
 }
 
 
@@ -188,6 +239,7 @@ impl BrainMesh {
     }
 
 
+
     /// Compute the min and max coordinates for the x, y, and z axes of the mesh.
     ///
     /// # Panics
@@ -198,23 +250,7 @@ impl BrainMesh {
     ///
     /// The 6 values in the returned tuple are, in the following order: (min_x, max_x, min_y, max_y, min_z, max_z).
     pub fn axes_min_max_coords(&self) -> (f32, f32, f32, f32, f32, f32) {
-        let all_coords = Array2::from_shape_vec((self.vertices.len()/3 as usize, 3 as usize), self.vertices.clone()).unwrap();
-        let x_coords =  all_coords.slice(s![.., 0]);
-        let y_coords =  all_coords.slice(s![.., 1]);
-        let z_coords =  all_coords.slice(s![.., 2]);
-
-        //assert_eq!(x_coords.len(), self.vertices.len()/3 as usize);
-
-        let min_x = x_coords.min().unwrap().clone(); // min() on type ndarray::ArrayBase is available from ndarray-stats Quantile trait
-        let max_x = x_coords.max().unwrap().clone(); 
-
-        let min_y = y_coords.min().unwrap().clone();
-        let max_y = y_coords.max().unwrap().clone(); 
-
-        let min_z = z_coords.min().unwrap().clone();
-        let max_z = z_coords.max().unwrap().clone(); 
-        
-        (min_x, max_x, min_y, max_y, min_z, max_z)
+        coord_extrema(&self.vertices)
     }
 
 
@@ -230,15 +266,17 @@ impl BrainMesh {
     ///
     /// The 3 values in the returned tuple are the x, y and z coordinates of the center, in that order.
     pub fn center(&self)  -> (f32, f32, f32) {
-        let (min_x, max_x, min_y, max_y, min_z, max_z) = self.axes_min_max_coords();
-        let cx = array![min_x, max_x].mean().unwrap();
-        let cy = array![min_y, max_y].mean().unwrap();
-        let cz = array![min_z, max_z].mean().unwrap();
-        (cx, cy, cz)
+        coord_center(&self.vertices)
     }
 
-
 }
+
+impl fmt::Display for BrainMesh {    
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {        
+        write!(f, "Brain trimesh with {} vertices and {} faces.", self.vertices.len()/3, self.faces.len()/3)
+    }
+}
+
 
 
 /// Read an FsSurface instance from a file.
@@ -310,6 +348,12 @@ impl FsSurface {
         };
 
         mesh
+    }
+}
+
+impl fmt::Display for FsSurface {    
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {        
+        write!(f, "FreeSurfer Brain trimesh with {} vertices and {} faces.", self.mesh.vertices.len()/3, self.mesh.faces.len()/3)
     }
 }
 
