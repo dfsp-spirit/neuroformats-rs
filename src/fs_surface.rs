@@ -88,13 +88,24 @@ impl FsSurfaceHeader {
 /// # Return value
 ///
 /// The 6 values in the returned tuple are, in the following order: (min_x, max_x, min_y, max_y, min_z, max_z).
+///
+/// Examples
+///
+/// ```no_run
+/// let coords: Vec<f32> = vec![0.0, 0.1, 0.2, 0.3, 0.3, 0.3, 1.0, 2.0, 4.0];
+/// let (minx, maxx, miny, maxy, minz, maxz) = coord_extrema(&coords).unwrap();
+/// assert_eq!(0.0, minx);
+/// assert_eq!(0.1, miny);
+/// assert_eq!(0.2, minz);
+/// assert_eq!(1.0, maxx);
+/// assert_eq!(2.0, maxy);
+/// assert_eq!(4.0, maxz);
+/// ```
 pub fn coord_extrema(coords : &Vec<f32>) -> Result<(f32, f32, f32, f32, f32, f32)> {
     let all_coords = Array2::from_shape_vec((coords.len()/3 as usize, 3 as usize), coords.clone()).unwrap();
     let x_coords =  all_coords.slice(s![.., 0]);
     let y_coords =  all_coords.slice(s![.., 1]);
     let z_coords =  all_coords.slice(s![.., 2]);
-
-    //assert_eq!(x_coords.len(), self.vertices.len()/3 as usize);
 
     let min_x = x_coords.min().unwrap().clone(); // min() on type ndarray::ArrayBase is available from ndarray-stats Quantile trait
     let max_x = x_coords.max().unwrap().clone(); 
@@ -120,6 +131,16 @@ pub fn coord_extrema(coords : &Vec<f32>) -> Result<(f32, f32, f32, f32, f32, f32
 /// # Return value
 ///
 /// The 3 values in the returned tuple are the x, y and z coordinates of the center, in that order.
+///
+/// # Examples
+///
+/// ```no_run
+/// let coords: Vec<f32> = vec![0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 1.0, 2.0, 4.0];
+/// let (cx, cy, cz) = coord_center(&coords).unwrap();
+/// assert_eq!(0.5, cx);
+/// assert_eq!(1.0, cy);
+/// assert_eq!(2.0, cz);
+/// ```
 pub fn coord_center(coords : &Vec<f32>)  -> Result<(f32, f32, f32)> {
     let (min_x, max_x, min_y, max_y, min_z, max_z) = coord_extrema(coords)?;
     let cx = array![min_x, max_x].mean().expect("Could not compute mean for x coords.");
