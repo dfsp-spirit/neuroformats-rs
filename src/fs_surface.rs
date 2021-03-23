@@ -88,7 +88,7 @@ impl FsSurfaceHeader {
 /// # Return value
 ///
 /// The 6 values in the returned tuple are, in the following order: (min_x, max_x, min_y, max_y, min_z, max_z).
-pub fn coord_extrema(coords : &Vec<f32>) -> (f32, f32, f32, f32, f32, f32) {
+pub fn coord_extrema(coords : &Vec<f32>) -> Result<(f32, f32, f32, f32, f32, f32)> {
     let all_coords = Array2::from_shape_vec((coords.len()/3 as usize, 3 as usize), coords.clone()).unwrap();
     let x_coords =  all_coords.slice(s![.., 0]);
     let y_coords =  all_coords.slice(s![.., 1]);
@@ -105,7 +105,7 @@ pub fn coord_extrema(coords : &Vec<f32>) -> (f32, f32, f32, f32, f32, f32) {
     let min_z = z_coords.min().unwrap().clone();
     let max_z = z_coords.max().unwrap().clone(); 
     
-    (min_x, max_x, min_y, max_y, min_z, max_z)
+    Ok((min_x, max_x, min_y, max_y, min_z, max_z))
 }
 
 
@@ -120,12 +120,12 @@ pub fn coord_extrema(coords : &Vec<f32>) -> (f32, f32, f32, f32, f32, f32) {
 /// # Return value
 ///
 /// The 3 values in the returned tuple are the x, y and z coordinates of the center, in that order.
-pub fn coord_center(coords : &Vec<f32>)  -> (f32, f32, f32) {
-    let (min_x, max_x, min_y, max_y, min_z, max_z) = coord_extrema(coords);
-    let cx = array![min_x, max_x].mean().unwrap();
-    let cy = array![min_y, max_y].mean().unwrap();
-    let cz = array![min_z, max_z].mean().unwrap();
-    (cx, cy, cz)
+pub fn coord_center(coords : &Vec<f32>)  -> Result<(f32, f32, f32)> {
+    let (min_x, max_x, min_y, max_y, min_z, max_z) = coord_extrema(coords)?;
+    let cx = array![min_x, max_x].mean().expect("Could not compute mean for x coords.");
+    let cy = array![min_y, max_y].mean().expect("Could not compute mean for y coords.");
+    let cz = array![min_z, max_z].mean().expect("Could not compute mean for z coords.");
+    Ok((cx, cy, cz))
 }
 
 
@@ -249,7 +249,7 @@ impl BrainMesh {
     /// # Return value
     ///
     /// The 6 values in the returned tuple are, in the following order: (min_x, max_x, min_y, max_y, min_z, max_z).
-    pub fn axes_min_max_coords(&self) -> (f32, f32, f32, f32, f32, f32) {
+    pub fn axes_min_max_coords(&self) -> Result<(f32, f32, f32, f32, f32, f32)> {
         coord_extrema(&self.vertices)
     }
 
@@ -265,7 +265,7 @@ impl BrainMesh {
     /// # Return value
     ///
     /// The 3 values in the returned tuple are the x, y and z coordinates of the center, in that order.
-    pub fn center(&self)  -> (f32, f32, f32) {
+    pub fn center(&self)  -> Result<(f32, f32, f32)> {
         coord_center(&self.vertices)
     }
 
@@ -382,15 +382,15 @@ mod test {
 
         let expected_min_max : (f32, f32, f32, f32, f32, f32) = (-60.6363, 5.589893, -108.62039, 58.73302, -8.280799, 106.17429);
         
-        assert_abs_diff_eq!(expected_min_max.0, surf.mesh.axes_min_max_coords().0, epsilon = 1e-8);
-        assert_abs_diff_eq!(expected_min_max.1, surf.mesh.axes_min_max_coords().1, epsilon = 1e-8);
-        assert_abs_diff_eq!(expected_min_max.2, surf.mesh.axes_min_max_coords().2, epsilon = 1e-8);
-        assert_abs_diff_eq!(expected_min_max.3, surf.mesh.axes_min_max_coords().3, epsilon = 1e-8);
-        assert_abs_diff_eq!(expected_min_max.4, surf.mesh.axes_min_max_coords().4, epsilon = 1e-8);
-        assert_abs_diff_eq!(expected_min_max.5, surf.mesh.axes_min_max_coords().5, epsilon = 1e-8);
+        assert_abs_diff_eq!(expected_min_max.0, surf.mesh.axes_min_max_coords().unwrap().0, epsilon = 1e-8);
+        assert_abs_diff_eq!(expected_min_max.1, surf.mesh.axes_min_max_coords().unwrap().1, epsilon = 1e-8);
+        assert_abs_diff_eq!(expected_min_max.2, surf.mesh.axes_min_max_coords().unwrap().2, epsilon = 1e-8);
+        assert_abs_diff_eq!(expected_min_max.3, surf.mesh.axes_min_max_coords().unwrap().3, epsilon = 1e-8);
+        assert_abs_diff_eq!(expected_min_max.4, surf.mesh.axes_min_max_coords().unwrap().4, epsilon = 1e-8);
+        assert_abs_diff_eq!(expected_min_max.5, surf.mesh.axes_min_max_coords().unwrap().5, epsilon = 1e-8);
 
         let expected_center : (f32, f32, f32) = (-27.523203, -24.943686, 48.946747);
-        let (cx, cy, cz) = surf.mesh.center();
+        let (cx, cy, cz) = surf.mesh.center().unwrap();
         assert_abs_diff_eq!(expected_center.0, cx, epsilon = 1e-8);
         assert_abs_diff_eq!(expected_center.1, cy, epsilon = 1e-8);
         assert_abs_diff_eq!(expected_center.2, cz, epsilon = 1e-8);
@@ -421,6 +421,28 @@ mod test {
 
         assert_eq!(known_vertex_count * 3, mesh.vertices.len());
         assert_eq!(known_face_count * 3, mesh.faces.len());
+    }
+
+    #[test]
+    fn the_coord_center_can_be_computed() {
+        let coords: Vec<f32> = vec![0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 0.5, 0.5, 0.5, 0.9, 0.9, 0.9, 0.95, 0.95, 0.95, 1.0, 2.0, 4.0];
+        let (cx, cy, cz) = coord_center(&coords).unwrap();
+        assert_eq!(0.5, cx);
+        assert_eq!(1.0, cy);
+        assert_eq!(2.0, cz);
+    }
+
+
+    #[test]
+    fn the_coord_extrema_can_be_computed() {
+        let coords: Vec<f32> = vec![0.0, 0.1, 0.2, 0.3, 0.3, 0.3, 0.5, 0.5, 0.5, 0.9, 0.9, 0.9, 0.95, 0.95, 0.95, 1.0, 2.0, 4.0];
+        let (minx, maxx, miny, maxy, minz, maxz) = coord_extrema(&coords).unwrap();
+        assert_eq!(0.0, minx);
+        assert_eq!(0.1, miny);
+        assert_eq!(0.2, minz);
+        assert_eq!(1.0, maxx);
+        assert_eq!(2.0, maxy);
+        assert_eq!(4.0, maxz);
     }
 }
 
