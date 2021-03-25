@@ -9,6 +9,7 @@ use byteordered::{ByteOrdered};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path};
+use std::fmt;
 
 use crate::util::read_fixed_length_string;
 use crate::error::{NeuroformatsError, Result};
@@ -70,8 +71,14 @@ impl FsAnnotColortable {
 
         Ok(ct)
     }
-
 }
+
+impl fmt::Display for FsAnnotColortable {    
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {        
+        write!(f, "Colortable for {} brain regions.", self.id.len())
+    }
+}
+
 
 /// Models a FreeSurfer brain surface parcellation from an annot file. This is the result of applying a brain atlas (like Desikan-Killiani) to a subject. The `vertex_indices` are the 0-based indices used in FreeSurfer and should be ignored. The `vertex_labels` field contains the mesh vertices in order, and assigns to each vertex a brain region using the `label` field (not the `id` field!) from the `colortable`. The field `colortable` contains an [`FsAnnotColortable`] struct that describes the brain regions.
 #[derive(Debug, Clone, PartialEq)]
@@ -186,6 +193,13 @@ impl FsAnnot {
         return vert_regions;
     }
 
+}
+
+
+impl fmt::Display for FsAnnot {    
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {        
+        write!(f, "Surface parcellation assigning {} vertices to {} brain regions.", self.vertex_indices.len(), self.colortable.id.len())
+    }
 }
 
 
