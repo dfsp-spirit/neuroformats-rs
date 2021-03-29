@@ -193,6 +193,48 @@ impl FsAnnot {
         return vert_regions;
     }
 
+
+    /// Returns the Rust indices into the colortable fields for each vertex.
+    fn vertex_colortable_indices(&self) -> Vec<i32> {
+        let mut vert_colortable_indices: Vec<i32> = Vec::with_capacity(self.vertex_labels.len());
+        for region_label in self.colortable.label.clone() {
+            for (idx, vlabel) in self.vertex_labels.iter().enumerate() {
+                if vlabel == &region_label {
+                    vert_colortable_indices[idx] = *vlabel;
+                }
+            }
+        }
+        return vert_colortable_indices;
+    }
+
+
+    /// Get the vertex colors for all annot vertices as u8 RGB(A) values.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// let annot = neuroformats::read_annot("/path/to/subjects_dir/subject1/label/lh.aparc.annot").unwrap();
+    /// let col_rgba = annot.vertex_colors(true);
+    /// assert_eq!(col_rgba.len(), annot.vertex_indices.len() * 4);
+    /// let col_rgb = annot.vertex_colors(false);
+    /// assert_eq!(col_rgb.len(), annot.vertex_indices.len() * 3);
+    /// ```
+    pub fn vertex_colors(&self, alpha : bool) -> Vec<u8> {
+        let capacity = if alpha { self.vertex_labels.len() * 4 } else { self.vertex_labels.len() * 3 };
+        let mut vert_colors: Vec<u8> = Vec::with_capacity(capacity);
+
+        for ct_region_idx in self.vertex_colortable_indices().iter() {
+            let reg_idx = (*ct_region_idx) as usize;
+            vert_colors.push(self.colortable.r[reg_idx].clone() as u8);
+            vert_colors.push(self.colortable.g[reg_idx].clone() as u8);
+            vert_colors.push(self.colortable.b[reg_idx].clone() as u8);
+            if alpha {
+                vert_colors.push(self.colortable.a[reg_idx].clone() as u8);
+            }
+        }
+        vert_colors
+    }
+
 }
 
 
