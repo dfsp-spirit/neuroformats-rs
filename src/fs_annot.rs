@@ -195,13 +195,21 @@ impl FsAnnot {
 
 
     /// Returns the Rust indices into the colortable fields for each vertex.
-    fn vertex_colortable_indices(&self) -> Vec<i32> {
-        let mut vert_colortable_indices: Vec<i32> = Vec::with_capacity(self.vertex_labels.len());
-        for region_label in self.colortable.label.clone() {
-            for (idx, vlabel) in self.vertex_labels.iter().enumerate() {
-                if vlabel == &region_label {
-                    vert_colortable_indices[idx] = *vlabel;
-                }
+    /// # Examples
+    ///
+    /// ```no_run
+    /// let annot = neuroformats::read_annot("/path/to/subjects_dir/subject1/label/lh.aparc.annot").unwrap();
+    /// let vi = annot.vertex_colortable_indices();
+    /// assert_eq!(vi.len(), annot.vertex_indices.len());
+    /// ```
+    fn vertex_colortable_indices(&self) -> Vec<usize> {
+        let mut vert_colortable_indices: Vec<usize> = Vec::with_capacity(self.vertex_labels.len());
+        for vlabel in self.vertex_labels.iter() {
+            for (region_idx, region_label) in self.colortable.label.iter().enumerate() {            
+                if vlabel == region_label {
+                    vert_colortable_indices.push(region_idx);
+                    break;
+                }            
             }
         }
         return vert_colortable_indices;
@@ -302,6 +310,7 @@ mod test {
         let annot = read_annot(ANNOT_FILE).unwrap();
         let regions : Vec<String> = annot.regions();
 
+        assert_eq!(36, regions.len());
         assert_eq!(regions[0], "unknown");
         assert_eq!(regions[1], "bankssts");
         assert_eq!(regions[35], "insula");
@@ -315,4 +324,29 @@ mod test {
 
         assert_eq!(1722, region_verts.len());
     }
+
+    #[test]
+    fn annot_region_indices_are_computed_correctly() {
+        const ANNOT_FILE: &str = "resources/subjects_dir/subject1/label/lh.aparc.annot";
+        let annot = read_annot(ANNOT_FILE).unwrap();
+        let mut region_indices : Vec<usize> = annot.vertex_colortable_indices();
+
+        
+        region_indices.sort();
+        assert_eq!(*region_indices.first().unwrap(), 1 as usize); // First is 1, not 0 (No vertices in this annot belong to region 0, "unknown").
+        assert_eq!(*region_indices.last().unwrap(), 35 as usize);
+
+        assert_eq!(149244, region_indices.len());
+    }
+
+    #[test]
+    fn annot_vertex_colors_are_computed_correctly() {
+        let annot = read_annot("resources/subjects_dir/subject1/label/lh.aparc.annot").unwrap();
+        let col_rgba = annot.vertex_colors(true);
+        assert_eq!(col_rgba.len(), annot.vertex_indices.len() * 4);
+        let col_rgb = annot.vertex_colors(false);
+        assert_eq!(col_rgb.len(), annot.vertex_indices.len() * 3);
+    }
+
+    
 }
