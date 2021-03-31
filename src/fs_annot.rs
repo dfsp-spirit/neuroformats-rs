@@ -129,7 +129,8 @@ impl FsAnnot {
         }
     }
 
-    /// Get the region names contained in an FsAnnot struct.
+    /// Get the region names contained in the [`FsAnnot`] struct.
+    ///
     /// # Examples
     ///
     /// ```no_run
@@ -142,13 +143,19 @@ impl FsAnnot {
     }
 
 
+    /// Get the number of regions contained in the [`FsAnnot`] struct, or its [`FsAnnotColortable`].
+    pub fn num_regions(&self) -> usize {
+        self.regions().len()
+    }
+
+
     /// Get the indices of all vertices which are part of the given brain region of the [`FsAnnot`] struct.
     ///
-    /// Note that it can happen that no vertices are assigned to the region, in which case the result vecotr is empty.
+    /// Note that it can happen that no vertices are assigned to the region, in which case the result vector is empty.
     ///
     /// # Panics
     ///
-    /// If the given `region` is not a valid region name for the `annot`.
+    /// If the given `region` is not a valid region name for the [`FsAnnot`] struct.
     ///
     /// # Examples
     ///
@@ -195,7 +202,15 @@ impl FsAnnot {
 
 
     /// Returns the Rust indices into the colortable fields for each vertex.
-    fn vertex_colortable_indices(&self, unmatched_index : usize) -> Vec<usize> {
+    ///
+    /// # Parameters
+    ///
+    /// * `unmatched_region_index`: The region index to use for vertices with a label that does not match any region label. Typically they are assigned to an `unknown` region, which should be at the start of the colortable (at index `0`). If in doubt, check the region names of the annot.
+    ///
+    /// # Panics
+    ///
+    /// If the `unmatched_region_index` is not a valid index for the [`FsAnnot`] struct, i.e., it is out of range.
+    fn vertex_colortable_indices(&self, unmatched_region_index : usize) -> Vec<usize> {
         let mut vert_colortable_indices: Vec<usize> = Vec::with_capacity(self.vertex_labels.len());
         for vlabel in self.vertex_labels.iter() {
             let mut found = false;
@@ -207,7 +222,7 @@ impl FsAnnot {
                 }
             }
             if ! found {
-                vert_colortable_indices.push(unmatched_index);
+                vert_colortable_indices.push(unmatched_region_index);
             }
         }
         return vert_colortable_indices;
@@ -216,6 +231,17 @@ impl FsAnnot {
 
     /// Get the vertex colors for all annot vertices as u8 RGB(A) values.
     ///
+    /// The vertex colors are represented as 3 RGB values per vertex if `alpha` is `false`, and as 4 RGBA values per vertex if `alpha` is `true`.
+    ///
+    /// # Parameters
+    ///
+    /// * `alpha`: whether to return the alpha channel value. 
+    /// * `unmatched_region_index`: Determines the region and thus the color that is used for unassigned vertices. This is the region index to use for vertices with a label that does not match any region label. Typically they are assigned to an `unknown` region, which should be at the start of the colortable (at index `0`). If in doubt, check the region names of the annot with [`FsAnnot::regions`].
+    ///
+    /// # Panics
+    ///
+    /// * If the `unmatched_region_index` is out of range for this FsAnnot, see [`FsAnnot::num_regions`] to check before calling this function.
+    /// 
     /// # Examples
     ///
     /// ```no_run
@@ -230,12 +256,11 @@ impl FsAnnot {
         let mut vert_colors: Vec<u8> = Vec::with_capacity(capacity);
 
         for ct_region_idx in self.vertex_colortable_indices(unmatched_region_index).iter() {
-            let reg_idx = (*ct_region_idx) as usize;
-            vert_colors.push(self.colortable.r[reg_idx].clone() as u8);
-            vert_colors.push(self.colortable.g[reg_idx].clone() as u8);
-            vert_colors.push(self.colortable.b[reg_idx].clone() as u8);
+            vert_colors.push(self.colortable.r[*ct_region_idx].clone() as u8);
+            vert_colors.push(self.colortable.g[*ct_region_idx].clone() as u8);
+            vert_colors.push(self.colortable.b[*ct_region_idx].clone() as u8);
             if alpha {
-                vert_colors.push(self.colortable.a[reg_idx].clone() as u8);
+                vert_colors.push(self.colortable.a[*ct_region_idx].clone() as u8);
             }
         }
         vert_colors
@@ -273,6 +298,7 @@ pub fn read_annot<P: AsRef<Path> + Copy>(path: P) -> Result<FsAnnot> {
     FsAnnot::from_file(path)
 }
 
+
 #[cfg(test)]
 mod test { 
     use super::*;
@@ -309,6 +335,7 @@ mod test {
         let regions : Vec<String> = annot.regions();
 
         assert_eq!(36, regions.len());
+        assert_eq!(36, annot.num_regions());
         assert_eq!(regions[0], "unknown");
         assert_eq!(regions[1], "bankssts");
         assert_eq!(regions[35], "insula");
