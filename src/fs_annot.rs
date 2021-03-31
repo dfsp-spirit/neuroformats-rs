@@ -195,21 +195,19 @@ impl FsAnnot {
 
 
     /// Returns the Rust indices into the colortable fields for each vertex.
-    /// # Examples
-    ///
-    /// ```no_run
-    /// let annot = neuroformats::read_annot("/path/to/subjects_dir/subject1/label/lh.aparc.annot").unwrap();
-    /// let vi = annot.vertex_colortable_indices();
-    /// assert_eq!(vi.len(), annot.vertex_indices.len());
-    /// ```
-    fn vertex_colortable_indices(&self) -> Vec<usize> {
+    fn vertex_colortable_indices(&self, unmatched_index : usize) -> Vec<usize> {
         let mut vert_colortable_indices: Vec<usize> = Vec::with_capacity(self.vertex_labels.len());
         for vlabel in self.vertex_labels.iter() {
+            let mut found = false;
             for (region_idx, region_label) in self.colortable.label.iter().enumerate() {            
                 if vlabel == region_label {
                     vert_colortable_indices.push(region_idx);
+                    found = true;
                     break;
-                }            
+                }
+            }
+            if ! found {
+                vert_colortable_indices.push(unmatched_index);
             }
         }
         return vert_colortable_indices;
@@ -222,16 +220,16 @@ impl FsAnnot {
     ///
     /// ```no_run
     /// let annot = neuroformats::read_annot("/path/to/subjects_dir/subject1/label/lh.aparc.annot").unwrap();
-    /// let col_rgba = annot.vertex_colors(true);
+    /// let col_rgba = annot.vertex_colors(true, 0);
     /// assert_eq!(col_rgba.len(), annot.vertex_indices.len() * 4);
-    /// let col_rgb = annot.vertex_colors(false);
+    /// let col_rgb = annot.vertex_colors(false, 0);
     /// assert_eq!(col_rgb.len(), annot.vertex_indices.len() * 3);
     /// ```
-    pub fn vertex_colors(&self, alpha : bool) -> Vec<u8> {
+    pub fn vertex_colors(&self, alpha : bool, unmatched_region_index: usize) -> Vec<u8> {
         let capacity = if alpha { self.vertex_labels.len() * 4 } else { self.vertex_labels.len() * 3 };
         let mut vert_colors: Vec<u8> = Vec::with_capacity(capacity);
 
-        for ct_region_idx in self.vertex_colortable_indices().iter() {
+        for ct_region_idx in self.vertex_colortable_indices(unmatched_region_index).iter() {
             let reg_idx = (*ct_region_idx) as usize;
             vert_colors.push(self.colortable.r[reg_idx].clone() as u8);
             vert_colors.push(self.colortable.g[reg_idx].clone() as u8);
@@ -329,11 +327,12 @@ mod test {
     fn annot_region_indices_are_computed_correctly() {
         const ANNOT_FILE: &str = "resources/subjects_dir/subject1/label/lh.aparc.annot";
         let annot = read_annot(ANNOT_FILE).unwrap();
-        let mut region_indices : Vec<usize> = annot.vertex_colortable_indices();
+        assert_eq!(149244, annot.vertex_indices.len());
 
+        let mut region_indices : Vec<usize> = annot.vertex_colortable_indices(0);
         
         region_indices.sort();
-        assert_eq!(*region_indices.first().unwrap(), 1 as usize); // First is 1, not 0 (No vertices in this annot belong to region 0, "unknown").
+        assert_eq!(*region_indices.first().unwrap(), 0 as usize);
         assert_eq!(*region_indices.last().unwrap(), 35 as usize);
 
         assert_eq!(149244, region_indices.len());
@@ -342,9 +341,12 @@ mod test {
     #[test]
     fn annot_vertex_colors_are_computed_correctly() {
         let annot = read_annot("resources/subjects_dir/subject1/label/lh.aparc.annot").unwrap();
-        let col_rgba = annot.vertex_colors(true);
+
+        assert_eq!(149244, annot.vertex_indices.len());
+
+        let col_rgba = annot.vertex_colors(true, 0);
         assert_eq!(col_rgba.len(), annot.vertex_indices.len() * 4);
-        let col_rgb = annot.vertex_colors(false);
+        let col_rgb = annot.vertex_colors(false, 0);
         assert_eq!(col_rgb.len(), annot.vertex_indices.len() * 3);
     }
 
