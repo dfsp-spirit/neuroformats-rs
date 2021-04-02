@@ -14,7 +14,6 @@ use std::fmt;
 use crate::error::{NeuroformatsError, Result};
 use crate::util::vec32minmax;
 
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct FsLabel {
     pub vertex_index: Vec<i32>,
@@ -24,6 +23,31 @@ pub struct FsLabel {
     pub value: Vec<f32>,
 }
 
+
+impl FsLabel {
+
+    /// Determine whether this is a binary label. 
+    ///
+    /// A binary label assigns the same value (typically 0) to all its vertices.
+    /// Such a label is typically used to define a region of some sort, e.g., a single brain region extracted from a brain
+    /// surface parcellation (see [`FsAnnot`]). Whether or not the label is intended as a binary in/out region definition
+    /// cannot be known, so treat the return value as an educated guess.
+    ///
+    /// # Panics
+    ///
+    /// * If the label is empty, i.e., contains no values.
+    pub fn is_binary(&self) -> bool {
+        let first_val = self.value.first().expect("Empty label");
+        for (idx, val) in self.value.iter().enumerate() {
+            if idx > 0 {
+                if val != first_val {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+}
 
 impl fmt::Display for FsLabel {    
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {        

@@ -13,7 +13,6 @@ use std::fmt;
 
 use crate::util::read_fixed_length_string;
 use crate::error::{NeuroformatsError, Result};
-use crate::traits::VertexColor;
 
 
 #[derive(Debug, Clone, PartialEq)]
@@ -275,17 +274,6 @@ impl fmt::Display for FsAnnot {
         write!(f, "Surface parcellation assigning {} vertices to {} brain regions.", self.vertex_indices.len(), self.colortable.id.len())
     }
 }
-
-impl VertexColor for FsAnnot {
-    fn vertex_color_rgb(&self) -> Vec<u8> {
-        self.vertex_colors(false, 0)
-    }
-
-    fn vertex_color_rgba(&self) -> Vec<u8> {
-        self.vertex_colors(true, 0)        
-    }
-}
-
 
 
 /// Read a brain parcellation from a FreeSurfer annot file.

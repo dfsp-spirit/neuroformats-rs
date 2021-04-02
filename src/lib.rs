@@ -13,7 +13,6 @@ pub mod fs_surface;
 pub mod fs_label;
 pub mod fs_annot;
 pub mod fs_mgh;
-pub mod traits;
 
 
 pub use fs_curv::{FsCurvHeader, FsCurv, read_curv, write_curv};
