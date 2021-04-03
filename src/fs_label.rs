@@ -47,6 +47,27 @@ impl FsLabel {
         }
         true
     }
+
+
+    /// Determine for each vertex whether it is part of this label.
+    ///
+    /// This is a simple convenience function. Note that you need to supply the total number of vertices of
+    /// the respective surface, as that number is not stored in the label.
+    ///
+    /// # Panics
+    ///
+    /// * If `num_surface_verts` is smaller than the max index stored in the label. If this happens, the label cannot belong to the respective surface.
+    pub fn is_surface_vertex_in_label(&self, num_surface_verts: usize) -> Vec<bool> {
+        if num_surface_verts < self.vertex_index.len() {
+            // In this case, num_surface_verts is definitely wrong, but we do not check the max index here, which means stuff can still go wrong below.
+            panic!("Invalid vertex count 'num_surface_verts' for surface: label contains {} vertices, surface cannot contain only {}.", self.vertex_index.len(), num_surface_verts);
+        }
+        let mut data_bin = vec![false; num_surface_verts];
+        for label_vert_idx in self.vertex_index.iter() {
+            data_bin[*label_vert_idx as usize] = true;
+        }
+        data_bin
+    }
 }
 
 impl fmt::Display for FsLabel {    
@@ -123,5 +144,17 @@ mod test {
         assert_eq!(expected_vertex_count, label.coord2.len());
         assert_eq!(expected_vertex_count, label.coord3.len());
         assert_eq!(expected_vertex_count, label.value.len());
+    }
+
+    #[test]
+    fn the_label_utility_functions_work() {
+        const LABEL_FILE: &str = "resources/subjects_dir/subject1/label/lh.entorhinal_exvivo.label";
+        let label = read_label(LABEL_FILE).unwrap();
+
+        let num_surface_verts: usize = 160_000;
+        let label_mask = label.is_surface_vertex_in_label(num_surface_verts);
+        assert_eq!(num_surface_verts, label_mask.len());
+
+        assert_eq!(false, label.is_binary());
     }
 }
