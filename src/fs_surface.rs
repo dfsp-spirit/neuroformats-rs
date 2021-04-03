@@ -205,6 +205,18 @@ impl BrainMesh {
     }
 
 
+    /// Get the number of vertices for this mesh.
+    pub fn num_vertices(&self) -> usize {
+        self.vertices.len()/3
+    }
+
+
+    /// Get the number of faces (or polygons) for this mesh.
+    pub fn num_faces(&self) -> usize {
+        self.faces.len()/3
+    }
+
+
     /// Read a brain mesh from a Wavefront object format (.obj) mesh file.
     ///
     /// # Examples
