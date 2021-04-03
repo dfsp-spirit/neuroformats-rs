@@ -68,6 +68,23 @@ impl FsLabel {
         }
         data_bin
     }
+
+
+    /// Generate data for the whole surface from this label.
+    ///
+    /// This is a simple convenience function that creates a data vector with the specified length and fills it with the label
+    /// value for vertices which are part of this label and sets the rets to the `not_in_label_value`.
+    ///
+    /// # Panics
+    ///
+    /// * If `num_surface_verts` is smaller than the max index stored in the label. If this happens, the label cannot belong to the respective surface.
+    pub fn as_surface_data(&self, num_surface_verts : usize, not_in_label_value : f32) -> Vec<f32> {
+        let mut surface_data : Vec<f32> = vec![not_in_label_value; num_surface_verts];
+        for (label_vert_idx, surface_vert_idx) in self.vertex_index.iter().enumerate() {
+            surface_data[*surface_vert_idx as usize] = self.value[label_vert_idx];
+        }
+        surface_data
+    }
 }
 
 impl fmt::Display for FsLabel {    
@@ -154,6 +171,9 @@ mod test {
         let num_surface_verts: usize = 160_000;
         let label_mask = label.is_surface_vertex_in_label(num_surface_verts);
         assert_eq!(num_surface_verts, label_mask.len());
+
+        let surface_data = label.as_surface_data(num_surface_verts, f32::NAN);
+        assert_eq!(num_surface_verts, surface_data.len());
 
         assert_eq!(false, label.is_binary());
     }
