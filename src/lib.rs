@@ -6,7 +6,7 @@
 #[cfg(test)]
 extern crate approx;
 
-mod util;
+pub mod util;
 pub mod error;
 pub mod fs_curv;
 pub mod fs_surface;
@@ -20,3 +20,4 @@ pub use fs_surface::{FsSurfaceHeader, FsSurface, BrainMesh, read_surf, coord_cen
 pub use fs_label::{FsLabel, read_label};
 pub use fs_annot::{FsAnnot, FsAnnotColortable, read_annot};
 pub use fs_mgh::{FsMgh, FsMghHeader, FsMghData, read_mgh, MRI_UCHAR, MRI_INT, MRI_FLOAT, MRI_SHORT};
+pub use util::{vec32minmax};
