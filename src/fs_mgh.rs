@@ -343,6 +343,43 @@ impl fmt::Display for FsMgh {
 }
 
 
+/// Write an FsMgh struct to a file in FreeSurfer MGH format. MGZ is not supported yet.
+pub fn write_mgh<P: AsRef<Path> + Copy>(path: P, mgh : &FsMgh) {
+    let f = File::create(path).expect("Unable to create MGH file");
+    let f = BufWriter::new(f);  
+    let mut f  =  ByteOrdered::runtime(f, Endianness::Big); 
+    f.write_i32(mgh.header.mgh_format_version).unwrap();
+    f.write_i32(mgh.header.dim1len).unwrap();
+    f.write_i32(mgh.header.dim2len).unwrap();
+    f.write_i32(mgh.header.dim3len).unwrap();
+    f.write_i32(mgh.header.dim4len).unwrap();
+    f.write_i32(mgh.header.dtype).unwrap();
+    f.write_i32(mgh.header.dof).unwrap();
+    f.write_i16(mgh.header.is_ras_good).unwrap();
+
+    for v in mgh.header.delta.iter() { f.write_f32(*v).unwrap(); }
+    for v in mgh.header.mdc_raw.iter() { f.write_f32(*v).unwrap(); }
+    for v in mgh.header.p_xyz_c.iter() { f.write_f32(*v).unwrap(); }
+
+    // Fill rest of header space.
+    let header_space_left : usize = 194;
+    for v in 0..header_space_left { f.write_u8(0 as u8).unwrap(); }
+    
+    // Write data.
+    if mgh.header.dtype == MRI_UCHAR {
+        for v in mgh.data.mri_uchar.iter() { f.write_u8(*v).unwrap(); }
+    } else if mgh.header.dtype == MRI_INT {
+        for v in mgh.data.mri_int.iter() { f.write_i32(*v).unwrap(); }
+    } else if mgh.header.dtype == MRI_FLOAT {
+        for v in mgh.data.mri_float.iter() { f.write_f32(*v).unwrap(); }
+    } else if mgh.header.dtype == MRI_SHORT {
+        for v in mgh.data.mri_short.iter() { f.write_i16(*v).unwrap(); }
+    } else {
+        panic!("Unsupported MRI data type.");
+    }
+}
+
+
 #[cfg(test)]
 mod test { 
     use approx::AbsDiffEq;
