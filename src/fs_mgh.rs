@@ -1,12 +1,12 @@
 //! Functions for managing FreeSurfer brain volumes or other 3D or 4D data in binary 'MGH' files.
 
 use flate2::bufread::GzDecoder;
-use byteordered::{ByteOrdered};
+use byteordered::{ByteOrdered, Endianness};
 use ndarray::{Array, Array1, Array2, Array4, Dim, array};
 
 
 use std::{fs::File};
-use std::io::{BufReader, Read};
+use std::io::{BufReader, Read, BufWriter};
 use std::path::{Path};
 use std::fmt;
 
@@ -363,17 +363,17 @@ pub fn write_mgh<P: AsRef<Path> + Copy>(path: P, mgh : &FsMgh) {
 
     // Fill rest of header space.
     let header_space_left : usize = 194;
-    for v in 0..header_space_left { f.write_u8(0 as u8).unwrap(); }
+    for _v in 0..header_space_left { f.write_u8(0 as u8).unwrap(); }
     
     // Write data.
     if mgh.header.dtype == MRI_UCHAR {
-        for v in mgh.data.mri_uchar.iter() { f.write_u8(*v).unwrap(); }
+        for v in mgh.data.mri_uchar.as_ref().unwrap().iter() { f.write_u8(*v).unwrap(); }
     } else if mgh.header.dtype == MRI_INT {
-        for v in mgh.data.mri_int.iter() { f.write_i32(*v).unwrap(); }
+        for v in mgh.data.mri_int.as_ref().unwrap().iter() { f.write_i32(*v).unwrap(); }
     } else if mgh.header.dtype == MRI_FLOAT {
-        for v in mgh.data.mri_float.iter() { f.write_f32(*v).unwrap(); }
+        for v in mgh.data.mri_float.as_ref().unwrap().iter() { f.write_f32(*v).unwrap(); }
     } else if mgh.header.dtype == MRI_SHORT {
-        for v in mgh.data.mri_short.iter() { f.write_i16(*v).unwrap(); }
+        for v in mgh.data.mri_short.as_ref().unwrap().iter() { f.write_i16(*v).unwrap(); }
     } else {
         panic!("Unsupported MRI data type.");
     }
