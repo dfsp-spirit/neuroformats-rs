@@ -345,7 +345,7 @@ impl fmt::Display for FsMgh {
 
 /// Write an FsMgh struct to a file in FreeSurfer MGH format. MGZ is not supported yet.
 pub fn write_mgh<P: AsRef<Path> + Copy>(path: P, mgh : &FsMgh) {
-    let f = File::create(path).expect("Unable to create MGH file");
+    let f = File::create(path).expect("Unable to create MGH file.");
     let f = BufWriter::new(f);  
     let mut f  =  ByteOrdered::runtime(f, Endianness::Big); 
     f.write_i32(mgh.header.mgh_format_version).unwrap();
@@ -383,7 +383,7 @@ pub fn write_mgh<P: AsRef<Path> + Copy>(path: P, mgh : &FsMgh) {
 #[cfg(test)]
 mod test { 
     use approx::AbsDiffEq;
-
+    use tempfile::{tempdir};
     use super::*;
 
     #[test]
@@ -458,4 +458,64 @@ mod test {
 
         assert_eq!(mgh.header.is_ras_good, -1);
     }
+
+    #[test]
+    fn an_mgh_file_can_be_written_and_reread() {
+        const MGZ_FILE: &str = "resources/subjects_dir/subject1/mri/brain.mgz";
+        let mgh = read_mgh(MGZ_FILE).unwrap();
+
+        let dir = tempdir().unwrap();
+
+        let tfile_path = dir.path().join("temp-file.mgh");
+        let tfile_path = tfile_path.to_str().unwrap();
+        write_mgh(tfile_path, &mgh);
+
+        let mgh_re = read_mgh(tfile_path).unwrap();
+
+        // Test vox2ras computation
+        let vox2ras = mgh_re.header.vox2ras().unwrap();
+        assert_eq!(vox2ras.len(), 16);
+
+        let expected_vox2ras_ar : Vec<f32> = [-1., 0., 0., 0., 0., 0., -1. ,0. ,0., 1., 0., 0., 127.5, -98.6273, 79.0953, 1.].to_vec();
+        let expected_vox2ras = Array2::from_shape_vec((4, 4), expected_vox2ras_ar).unwrap().t().into_owned();
+
+        assert!(vox2ras.abs_diff_eq(&expected_vox2ras, 1e-2));
+
+        // Example: Use the vox2ras matrix to compute the RAS coords for voxel at indices (32, 32, 32).
+        let my_voxel_ijk : Array1<f32> = Array1::from([32.0, 32.0, 32.0, 1.0].to_vec()); // the 4th value in the vector is for homogenous coordinates.
+        let my_voxel_ras = vox2ras.dot(&my_voxel_ijk);        
+
+        let expected_voxel_ras : Array1<f32> = Array1::from([95.500046, -66.62726, 47.09527, 1.0].to_vec());
+        assert!(my_voxel_ras.abs_diff_eq(&expected_voxel_ras, 1e-2));
+
+                // Test MGH header.
+                assert_eq!(mgh.header.dim1len, 256);
+                assert_eq!(mgh.header.dim2len, 256);
+                assert_eq!(mgh.header.dim3len, 256);
+                assert_eq!(mgh.header.dim4len, 1);
+                assert_eq!(mgh.header.dtype, MRI_UCHAR);
+                assert_eq!(mgh.header.is_ras_good, 1);
+        
+                let expected_delta : Array1<f32> = array![1.0, 1.0, 1.0];
+                let expected_mdc : Array2<f32> = Array2::from_shape_vec((3, 3), [-1., 0., 0., 0., 0., -1., 0., 1., 0.].to_vec()).unwrap();
+                let expected_p_xyz_c : Array1<f32> = array![-0.49995422, 29.372742, -48.90473];
+        
+                let delta : Array1<f32> = Array1::from(mgh.header.delta.to_vec());
+                let mdc : Array2<f32> = Array2::from_shape_vec((3, 3), mgh.header.mdc_raw.to_vec()).unwrap();
+                let p_xyz_c : Array1<f32> = Array1::from(mgh.header.p_xyz_c.to_vec());
+        
+                assert!(delta.abs_diff_eq(&expected_delta, 1e-5));
+                assert!(mdc.abs_diff_eq(&expected_mdc, 1e-5));
+                assert!(p_xyz_c.abs_diff_eq(&expected_p_xyz_c, 1e-5));
+        
+                // Test MGH data.
+                let data = mgh.data.mri_uchar.unwrap();
+                assert_eq!(data.ndim(), 4);
+                assert_eq!(data[[99, 99, 99, 0]], 77);   // try on command line: mri_info --voxel 99 99 99 resources/subjects_dir/subject1/mri/brain.mgz
+                assert_eq!(data[[109, 109, 109, 0]], 71);
+                assert_eq!(data[[0, 0, 0, 0]], 0);
+        
+                assert_eq!(data.mapv(|a| a as i32).sum(), 121035479);        
+    }
+
 }
