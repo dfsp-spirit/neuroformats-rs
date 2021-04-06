@@ -488,34 +488,34 @@ mod test {
         let expected_voxel_ras : Array1<f32> = Array1::from([95.500046, -66.62726, 47.09527, 1.0].to_vec());
         assert!(my_voxel_ras.abs_diff_eq(&expected_voxel_ras, 1e-2));
 
-                // Test MGH header.
-                assert_eq!(mgh.header.dim1len, 256);
-                assert_eq!(mgh.header.dim2len, 256);
-                assert_eq!(mgh.header.dim3len, 256);
-                assert_eq!(mgh.header.dim4len, 1);
-                assert_eq!(mgh.header.dtype, MRI_UCHAR);
-                assert_eq!(mgh.header.is_ras_good, 1);
-        
-                let expected_delta : Array1<f32> = array![1.0, 1.0, 1.0];
-                let expected_mdc : Array2<f32> = Array2::from_shape_vec((3, 3), [-1., 0., 0., 0., 0., -1., 0., 1., 0.].to_vec()).unwrap();
-                let expected_p_xyz_c : Array1<f32> = array![-0.49995422, 29.372742, -48.90473];
-        
-                let delta : Array1<f32> = Array1::from(mgh.header.delta.to_vec());
-                let mdc : Array2<f32> = Array2::from_shape_vec((3, 3), mgh.header.mdc_raw.to_vec()).unwrap();
-                let p_xyz_c : Array1<f32> = Array1::from(mgh.header.p_xyz_c.to_vec());
-        
-                assert!(delta.abs_diff_eq(&expected_delta, 1e-5));
-                assert!(mdc.abs_diff_eq(&expected_mdc, 1e-5));
-                assert!(p_xyz_c.abs_diff_eq(&expected_p_xyz_c, 1e-5));
-        
-                // Test MGH data.
-                let data = mgh.data.mri_uchar.unwrap();
-                assert_eq!(data.ndim(), 4);
-                assert_eq!(data[[99, 99, 99, 0]], 77);   // try on command line: mri_info --voxel 99 99 99 resources/subjects_dir/subject1/mri/brain.mgz
-                assert_eq!(data[[109, 109, 109, 0]], 71);
-                assert_eq!(data[[0, 0, 0, 0]], 0);
-        
-                assert_eq!(data.mapv(|a| a as i32).sum(), 121035479);        
+        // Test MGH header.
+        assert_eq!(mgh_re.header.dim1len, 256);
+        assert_eq!(mgh_re.header.dim2len, 256);
+        assert_eq!(mgh_re.header.dim3len, 256);
+        assert_eq!(mgh_re.header.dim4len, 1);
+        assert_eq!(mgh_re.header.dtype, MRI_UCHAR);
+        assert_eq!(mgh_re.header.is_ras_good, 1);
+
+        let expected_delta : Array1<f32> = array![1.0, 1.0, 1.0];
+        let expected_mdc : Array2<f32> = Array2::from_shape_vec((3, 3), [-1., 0., 0., 0., 0., -1., 0., 1., 0.].to_vec()).unwrap();
+        let expected_p_xyz_c : Array1<f32> = array![-0.49995422, 29.372742, -48.90473];
+
+        let delta : Array1<f32> = Array1::from(mgh_re.header.delta.to_vec());
+        let mdc : Array2<f32> = Array2::from_shape_vec((3, 3), mgh_re.header.mdc_raw.to_vec()).unwrap();
+        let p_xyz_c : Array1<f32> = Array1::from(mgh_re.header.p_xyz_c.to_vec());
+
+        assert!(delta.abs_diff_eq(&expected_delta, 1e-5));
+        assert!(mdc.abs_diff_eq(&expected_mdc, 1e-5));
+        assert!(p_xyz_c.abs_diff_eq(&expected_p_xyz_c, 1e-5));
+
+        // Test MGH data.
+        let data = mgh_re.data.mri_uchar.unwrap();
+        assert_eq!(data.ndim(), 4);
+        assert_eq!(data[[99, 99, 99, 0]], 77);   // try on command line: mri_info --voxel 99 99 99 resources/subjects_dir/subject1/mri/brain.mgz
+        assert_eq!(data[[109, 109, 109, 0]], 71);
+        assert_eq!(data[[0, 0, 0, 0]], 0);
+
+        assert_eq!(data.mapv(|a| a as i32).sum(), 121035479);        
     }
 
 }
