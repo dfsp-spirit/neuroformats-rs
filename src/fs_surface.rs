@@ -5,10 +5,10 @@
 //! These vertex indices are zero-based.
 
 
-use byteordered::{ByteOrdered};
+use byteordered::{ByteOrdered, Endianness};
 
 use std::{fs::File};
-use std::io::{BufReader, BufRead, Read, Seek};
+use std::io::{BufReader, BufRead, Read, Seek, BufWriter, Write};
 use std::path::{Path};
 use std::fmt;
 
@@ -64,6 +64,9 @@ impl FsSurfaceHeader {
     
         let mut input = ByteOrdered::be(input);
 
+        hdr.surf_magic[0] = input.read_u8()?;
+        hdr.surf_magic[1] = input.read_u8()?;
+        hdr.surf_magic[2] = input.read_u8()?;
         hdr.info_line = read_variable_length_string(&mut input)?;
         hdr.num_vertices = input.read_i32()?;
         hdr.num_faces = input.read_i32()?;
@@ -158,6 +161,27 @@ pub fn interpret_fs_int24(b1: u8, b2:u8, b3:u8) -> i32 {
 
     let fs_int24: i32 = c1 as i32 + c2 as i32 + c3;
     fs_int24
+}
+
+
+/// Write an FsSurface struct to a file in FreeSurfer surf format.
+pub fn write_surf<P: AsRef<Path> + Copy>(path: P, surf : &FsSurface) -> std::io::Result<()> {
+    let f = File::create(path)?;
+    let f = BufWriter::new(f);  
+    let mut f  =  ByteOrdered::runtime(f, Endianness::Big); 
+    f.write_u8(surf.header.surf_magic[0])?;
+    f.write_u8(surf.header.surf_magic[1])?;
+    f.write_u8(surf.header.surf_magic[2])?;
+
+    f.write_all(b"Some surface\0")?;
+
+    f.write_i32(surf.header.num_vertices)?;
+    f.write_i32(surf.header.num_faces)?;
+
+    for v in surf.mesh.vertices.iter() { f.write_f32(*v)?; }
+    for v in surf.mesh.faces.iter() { f.write_i32(*v)?; }
+    
+    Ok(())
 }
 
 

@@ -6,7 +6,7 @@
 
 
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write, LineWriter};
 use std::path::{Path};
 use std::fmt;
 
@@ -146,9 +146,31 @@ pub fn read_label<P: AsRef<Path>>(path: P) -> Result<FsLabel> {
 }
 
 
+/// Write an FsLabel struct to a new file.
+pub fn write_label<P: AsRef<Path> + Copy>(path: P, label : &FsLabel) -> std::io::Result<()> {
+    let file = File::create(path)?;
+    let mut file = LineWriter::new(file);
+
+    let header_lines = format!("# FreeSurfer label.\n{}\n", label.vertex_index.len());
+    let header_lines = header_lines.as_bytes();
+    file.write_all(header_lines)?;
+
+    for (idx, _) in label.vertex_index.iter().enumerate() {
+        let vline = format!("{} {} {} {} {}\n", label.vertex_index[idx], label.coord1[idx], label.coord2[idx], label.coord3[idx], label.value[idx]);
+        let vline = vline.as_bytes();
+        file.write_all(vline)?;
+    }
+
+    file.flush()?;
+
+    Ok(())
+}
+
+
 #[cfg(test)]
 mod test { 
     use super::*;
+    use tempfile::{tempdir};
 
     #[test]
     fn the_demo_surface_label_file_can_be_read() {
@@ -177,4 +199,25 @@ mod test {
 
         assert_eq!(false, label.is_binary());
     }
+
+    #[test]
+    fn a_label_file_can_be_written_and_reread() {
+        const LABEL_FILE: &str = "resources/subjects_dir/subject1/label/lh.entorhinal_exvivo.label";
+        let label = read_label(LABEL_FILE).unwrap();
+
+        let dir = tempdir().unwrap();
+
+        let tfile_path = dir.path().join("temp-file.label");
+        let tfile_path = tfile_path.to_str().unwrap();
+        write_label(tfile_path, &label).unwrap();
+
+        let label_re = read_label(tfile_path).unwrap();
+        let expected_vertex_count: usize = 1085;
+        assert_eq!(expected_vertex_count, label_re.vertex_index.len());
+        assert_eq!(expected_vertex_count, label_re.coord1.len());
+        assert_eq!(expected_vertex_count, label_re.coord2.len());
+        assert_eq!(expected_vertex_count, label_re.coord3.len());
+        assert_eq!(expected_vertex_count, label_re.value.len());
+    }
+
 }

@@ -16,11 +16,11 @@ neuroformats = "0.2.1"
 
 ## Features
 
-* Read and write FreeSurfer per-vertex data in curv format (like `subject/surf/lh.thickness`): functions `neuroformats::read_curv` and `neuroformats::write_curv`
-* Read brain meshes in FreeSurfer binary mesh format (like `subject/surf/lh.white`): `neuroformats::read_surf`
-* Read FreeSurfer label files (like `subject/label/lh.cortex.label`): `neuroformats::read_label`
-* Read FreeSurfer brain surface parcellations (like `subject/label/lh.aparc.annot`): `neuroformats::read_annot`
-* Read FreeSurfer brain volumes and other data from MGH and MGZ files: `neuroformats::read_mgh`
+* Read and write FreeSurfer per-vertex data in curv format (like `subject/surf/lh.thickness`): functions `neuroformats::read_curv` and `write_curv`
+* Read brain meshes in FreeSurfer binary mesh format (like `subject/surf/lh.white`): `read_surf`
+* Read and write FreeSurfer label files (like `subject/label/lh.cortex.label`): `read_label`
+* Read FreeSurfer brain surface parcellations (like `subject/label/lh.aparc.annot`): `read_annot`
+* Read and write FreeSurfer brain volumes and other data from MGH and MGZ files: `read_mgh` and `write_mgh`
 
 Various utility functions are implemented for performing common computations on the returned structs, e.g. computing the vox2ras matrix from the MGH header data or finding all vertices in a brain surface parcellation that belong to a certain brain atlas region.
 

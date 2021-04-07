@@ -38,7 +38,7 @@ quick_error! {
         }
 
         UnsupportedMriDataTypeInMgh {
-            display("Invalid or unsupported MRI_DTYPE in MGH file")
+            display("Invalid or unsupported MRI_DTYPE")
         }
 
         NoRasInformationInHeader {

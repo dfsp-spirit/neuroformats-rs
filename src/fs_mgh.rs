@@ -344,39 +344,41 @@ impl fmt::Display for FsMgh {
 
 
 /// Write an FsMgh struct to a file in FreeSurfer MGH format. MGZ is not supported yet.
-pub fn write_mgh<P: AsRef<Path> + Copy>(path: P, mgh : &FsMgh) {
-    let f = File::create(path).expect("Unable to create MGH file.");
+pub fn write_mgh<P: AsRef<Path> + Copy>(path: P, mgh : &FsMgh) -> std::io::Result<()> {
+    let f = File::create(path)?;
     let f = BufWriter::new(f);  
     let mut f  =  ByteOrdered::runtime(f, Endianness::Big); 
-    f.write_i32(mgh.header.mgh_format_version).unwrap();
-    f.write_i32(mgh.header.dim1len).unwrap();
-    f.write_i32(mgh.header.dim2len).unwrap();
-    f.write_i32(mgh.header.dim3len).unwrap();
-    f.write_i32(mgh.header.dim4len).unwrap();
-    f.write_i32(mgh.header.dtype).unwrap();
-    f.write_i32(mgh.header.dof).unwrap();
-    f.write_i16(mgh.header.is_ras_good).unwrap();
+    f.write_i32(mgh.header.mgh_format_version)?;
+    f.write_i32(mgh.header.dim1len)?;
+    f.write_i32(mgh.header.dim2len)?;
+    f.write_i32(mgh.header.dim3len)?;
+    f.write_i32(mgh.header.dim4len)?;
+    f.write_i32(mgh.header.dtype)?;
+    f.write_i32(mgh.header.dof)?;
+    f.write_i16(mgh.header.is_ras_good)?;
 
-    for v in mgh.header.delta.iter() { f.write_f32(*v).unwrap(); }
-    for v in mgh.header.mdc_raw.iter() { f.write_f32(*v).unwrap(); }
-    for v in mgh.header.p_xyz_c.iter() { f.write_f32(*v).unwrap(); }
+    for v in mgh.header.delta.iter() { f.write_f32(*v)?; }
+    for v in mgh.header.mdc_raw.iter() { f.write_f32(*v)?; }
+    for v in mgh.header.p_xyz_c.iter() { f.write_f32(*v)?; }
 
     // Fill rest of header space.
     let header_space_left : usize = 194;
-    for _v in 0..header_space_left { f.write_u8(0 as u8).unwrap(); }
+    for _v in 0..header_space_left { f.write_u8(0 as u8)?; }
     
     // Write data.
     if mgh.header.dtype == MRI_UCHAR {
-        for v in mgh.data.mri_uchar.as_ref().unwrap().iter() { f.write_u8(*v).unwrap(); }
+        for v in mgh.data.mri_uchar.as_ref().unwrap().iter() { f.write_u8(*v)?; }
     } else if mgh.header.dtype == MRI_INT {
-        for v in mgh.data.mri_int.as_ref().unwrap().iter() { f.write_i32(*v).unwrap(); }
+        for v in mgh.data.mri_int.as_ref().unwrap().iter() { f.write_i32(*v)?; }
     } else if mgh.header.dtype == MRI_FLOAT {
-        for v in mgh.data.mri_float.as_ref().unwrap().iter() { f.write_f32(*v).unwrap(); }
+        for v in mgh.data.mri_float.as_ref().unwrap().iter() { f.write_f32(*v)?; }
     } else if mgh.header.dtype == MRI_SHORT {
-        for v in mgh.data.mri_short.as_ref().unwrap().iter() { f.write_i16(*v).unwrap(); }
+        for v in mgh.data.mri_short.as_ref().unwrap().iter() { f.write_i16(*v)?; }
     } else {
         panic!("Unsupported MRI data type.");
     }
+
+    Ok(())
 }
 
 
@@ -468,7 +470,7 @@ mod test {
 
         let tfile_path = dir.path().join("temp-file.mgh");
         let tfile_path = tfile_path.to_str().unwrap();
-        write_mgh(tfile_path, &mgh);
+        write_mgh(tfile_path, &mgh).unwrap();
 
         let mgh_re = read_mgh(tfile_path).unwrap();
 
