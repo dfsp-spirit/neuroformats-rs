@@ -20,7 +20,6 @@ use ndarray::{Array2, array, s};
 use ndarray_stats::QuantileExt;
 
 pub const TRIS_MAGIC_FILE_TYPE_NUMBER: i32 = 16777214;
-pub const TRIS_MAGIC_FILE_TYPE_NUMBER_ALTERNATIVE: i32 = 16777215;
 
 /// Models the header of a FreeSurfer surf file containing a brain mesh.
 #[derive(Debug, Clone, PartialEq)]
@@ -35,7 +34,7 @@ pub struct FsSurfaceHeader {
 impl Default for FsSurfaceHeader {
     fn default() -> FsSurfaceHeader {
         FsSurfaceHeader {
-            surf_magic: [255; 3],
+            surf_magic: [255, 255, 254],
             info_line: String::from(""),
             num_vertices: 0,
             num_faces: 0
@@ -73,7 +72,7 @@ impl FsSurfaceHeader {
         
         let magic: i32 = interpret_fs_int24(hdr.surf_magic[0], hdr.surf_magic[1], hdr.surf_magic[2]);
 
-        if !(magic == TRIS_MAGIC_FILE_TYPE_NUMBER || magic == TRIS_MAGIC_FILE_TYPE_NUMBER_ALTERNATIVE) {
+        if !(magic == TRIS_MAGIC_FILE_TYPE_NUMBER) {
             Err(NeuroformatsError::InvalidFsSurfaceFormat)
         } else {
             Ok(hdr)
@@ -418,12 +417,17 @@ impl fmt::Display for FsSurface {
 #[cfg(test)]
 mod test { 
     use super::*;
+    use tempfile::{tempdir};
     use approx::assert_abs_diff_eq;
 
     #[test]
     fn the_demo_surf_file_can_be_read() {
         const SURF_FILE: &str = "resources/subjects_dir/subject1/surf/lh.white";
         let surf = read_surf(SURF_FILE).unwrap();
+
+        assert_eq!(255 as u8, surf.header.surf_magic[0]);
+        assert_eq!(255 as u8, surf.header.surf_magic[1]);
+        assert_eq!(254 as u8, surf.header.surf_magic[2]);
 
         assert_eq!(149244, surf.header.num_vertices);
         assert_eq!(298484, surf.header.num_faces);
@@ -501,6 +505,27 @@ mod test {
         assert_eq!(2.0, maxy);
         assert_eq!(4.0, maxz);
     }
+
+    #[test]
+    fn a_surface_file_can_be_written_and_reread() {
+        const SURF_FILE: &str = "resources/subjects_dir/subject1/surf/lh.white";
+        let surf = read_surf(SURF_FILE).unwrap();
+        
+        let dir = tempdir().unwrap();
+
+        let tfile_path = dir.path().join("temp-file.surface");
+        let tfile_path = tfile_path.to_str().unwrap();
+        write_surf(tfile_path, &surf).unwrap();
+
+        let surf_re = read_surf(tfile_path).unwrap();
+
+        assert_eq!(149244, surf_re.header.num_vertices);
+        assert_eq!(298484, surf_re.header.num_faces);
+    
+        assert_eq!(149244 * 3, surf_re.mesh.num_vertices());
+        assert_eq!(298484 * 3, surf_re.mesh.num_faces());
+    }
+
 }
 
 
