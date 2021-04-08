@@ -12,7 +12,7 @@ use std::io::{BufReader, BufRead, Read, Seek, BufWriter, Write};
 use std::path::{Path};
 use std::fmt;
 
-use crate::util::{read_variable_length_string};
+use crate::util::{read_fs_variable_length_string};
 use crate::error::{NeuroformatsError, Result};
 
 
@@ -66,7 +66,7 @@ impl FsSurfaceHeader {
         hdr.surf_magic[0] = input.read_u8()?;
         hdr.surf_magic[1] = input.read_u8()?;
         hdr.surf_magic[2] = input.read_u8()?;
-        hdr.info_line = read_variable_length_string(&mut input)?;
+        hdr.info_line = read_fs_variable_length_string(&mut input)?;
         hdr.num_vertices = input.read_i32()?;
         hdr.num_faces = input.read_i32()?;
         
@@ -172,12 +172,16 @@ pub fn write_surf<P: AsRef<Path> + Copy>(path: P, surf : &FsSurface) -> std::io:
     f.write_u8(surf.header.surf_magic[1])?;
     f.write_u8(surf.header.surf_magic[2])?;
 
+    // Write the info line. It is a byte string that ends with 2 Unix linefeeds '\n' or '\x0A' (decimal 10). There is NOT any string terminator (no NUL byte).
+    // Note that 
+
     //f.write_all(b"Some surface\0")?;
-    //f.write_all(b"Some surface\x00")?;
+    //f.write_all(b"Some surface\x0A\x0A\x00")?;
+    f.write_all(b"test\x0A\x0A")?;        
     //f.write_all(&[b'f', b'o', b'o', b'\0'])?;
 
-    let output = std::ffi::CString::new("test").unwrap();
-    f.write(output.as_bytes_with_nul())?;
+    //let output = std::ffi::CString::new("test").unwrap();
+    //f.write(output.as_bytes_with_nul())?;
 
     f.write_i32(surf.header.num_vertices)?;
     f.write_i32(surf.header.num_faces)?;

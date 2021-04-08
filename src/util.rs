@@ -8,10 +8,7 @@ use crate::error::{Result};
 use byteordered::byteorder::ReadBytesExt;
 
 /// Check whether the file extension ends with ".gz".
-pub fn is_gz_file<P>(path: P) -> bool
-where
-    P: AsRef<Path>,
-{
+pub fn is_gz_file<P>(path: P) -> bool where P: AsRef<Path>, {
     path.as_ref()
         .file_name()
         .map(|a| a.to_string_lossy().ends_with(".gz"))
@@ -25,12 +22,27 @@ pub fn read_variable_length_string<S>(input: &mut S) -> Result<String>
         S: Read + Seek,
     {
         let mut cur_char = input.read_u8()? as char;
-        let mut info_line = String::from(cur_char);
-        while cur_char != '\0' {
-            cur_char = input.read_u8()? as char;
-            if cur_char != ''äüÜüüüüüüüüüüüüüüüüü
-            
-            info_line.push(cur_char);            
+        let mut info_line = String::new();
+        while cur_char != '\0' {                        
+            info_line.push(cur_char);
+            cur_char = input.read_u8()? as char;            
+        }
+        input.seek(SeekFrom::Current(-1))?;
+        Ok(info_line)
+    }
+
+/// Read a variable length Freesurfer-stly byte string from the input.
+pub fn read_fs_variable_length_string<S>(input: &mut S) -> Result<String>
+    where
+        S: Read,
+    {
+        let mut last_char = input.read_u8()? as char;
+        let mut cur_char = input.read_u8()? as char;
+        let mut info_line = String::new();
+        panic!("not implemented yet")
+        while cur_char != '\0' {                        
+            info_line.push(cur_char);
+            cur_char = input.read_u8()? as char;            
         }
         input.seek(SeekFrom::Current(-1))?;
         Ok(info_line)
@@ -142,8 +154,8 @@ mod test {
         let mut out = Vec::new();
         c.read_to_end(&mut out).unwrap();
 
-        println!("s='{}'", s);
-        println!("out={:?}", out);
+        //println!("s='{}'", s);
+        //println!("out={:?}", out);
         assert_eq!(s, "test");
         assert_eq!(out, &[0, 166]);
     }
