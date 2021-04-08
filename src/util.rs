@@ -1,7 +1,7 @@
 //! Utility functions used in all other neuroformats modules.
 
 use std::{path::Path};
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{Read};
 
 use crate::error::{Result};
 
@@ -14,30 +14,6 @@ pub fn is_gz_file<P>(path: P) -> bool where P: AsRef<Path>, {
         .map(|a| a.to_string_lossy().ends_with(".gz"))
         .unwrap_or(false)
 }
-
-
-/// Read C-stlye NUL-terminated byte string and return as String.
-///
-/// Read a variable length NUL-terminated byte string from the input, until a '\0' is hit. One can chose whether the trailing '\0' is consumed.
-///
-/// # Warnings
-///
-/// * Terrible things will happen if there is no NUL char in the input.
-pub fn read_variable_length_string<S>(input: &mut S, consume_zero : bool) -> Result<String>
-    where
-        S: Read + Seek,
-    {
-        let mut cur_char = input.read_u8()? as char;
-        let mut info_line = String::new();
-        while cur_char != '\0' {                        
-            info_line.push(cur_char);
-            cur_char = input.read_u8()? as char;            
-        }
-        if ! consume_zero {
-            input.seek(SeekFrom::Current(-1))?;
-        }
-        Ok(info_line)
-    }
 
 
 /// Read a variable length Freesurfer-style byte string from the input.
@@ -155,29 +131,6 @@ mod test {
         assert_abs_diff_eq!(max, 0.9, epsilon = 1e-8);
     }
 
-    #[test]
-    fn a_variable_length_nul_terminated_c_string_can_be_read() {
-        use std::io::{Cursor, Read, Seek, SeekFrom, Write};
-    
-        // Create our "file".
-        let mut c = Cursor::new(Vec::<u8>::new());
-        let output = std::ffi::CString::new("test").unwrap();
-        c.write(output.as_bytes_with_nul()).unwrap();
-        c.write(&[166 as u8]).unwrap();
-
-        // Seek to start
-        c.seek(SeekFrom::Start(0)).unwrap();
-
-        // Re-read the data.
-        let s = read_variable_length_string(&mut c, false).unwrap();
-        let mut out = Vec::new();
-        c.read_to_end(&mut out).unwrap();
-
-        //println!("s='{}'", s);
-        //println!("out={:?}", out);
-        assert_eq!(s, "test");
-        assert_eq!(out, &[0, 166]);
-    }
 
     #[test]
     fn a_variable_length_fs_string_can_be_read() {
