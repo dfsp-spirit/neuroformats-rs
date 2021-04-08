@@ -8,7 +8,7 @@
 use byteordered::{ByteOrdered, Endianness};
 
 use std::{fs::File};
-use std::io::{BufReader, BufRead, Read, Seek, BufWriter, Write};
+use std::io::{BufReader, BufRead, Read, BufWriter, Write};
 use std::path::{Path};
 use std::fmt;
 
@@ -57,7 +57,7 @@ impl FsSurfaceHeader {
     /// FsSurface header.
     pub fn from_reader<S>(input: &mut S) -> Result<FsSurfaceHeader>
     where
-        S: Read + Seek,
+        S: Read,
     {
         let mut hdr = FsSurfaceHeader::default();
     
