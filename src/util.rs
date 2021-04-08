@@ -28,6 +28,8 @@ pub fn read_variable_length_string<S>(input: &mut S) -> Result<String>
         let mut info_line = String::from(cur_char);
         while cur_char != '\0' {
             cur_char = input.read_u8()? as char;
+            if cur_char != ''äüÜüüüüüüüüüüüüüüüüü
+            
             info_line.push(cur_char);            
         }
         input.seek(SeekFrom::Current(-1))?;
@@ -120,5 +122,29 @@ mod test {
         let (min, max) = vec32minmax(&v, true);
         assert_abs_diff_eq!(min, 0.01, epsilon = 1e-8);
         assert_abs_diff_eq!(max, 0.9, epsilon = 1e-8);
+    }
+
+    #[test]
+    fn a_variable_length_nul_terminated_c_string_can_be_read() {
+        use std::io::{Cursor, Read, Seek, SeekFrom, Write};
+    
+        // Create our "file".
+        let mut c = Cursor::new(Vec::<u8>::new());
+        let output = std::ffi::CString::new("test").unwrap();
+        c.write(output.as_bytes_with_nul()).unwrap();
+        c.write(&[166 as u8]).unwrap();
+
+        // Seek to start
+        c.seek(SeekFrom::Start(0)).unwrap();
+
+        // Re-read the data.
+        let s = read_variable_length_string(&mut c).unwrap();
+        let mut out = Vec::new();
+        c.read_to_end(&mut out).unwrap();
+
+        println!("s='{}'", s);
+        println!("out={:?}", out);
+        assert_eq!(s, "test");
+        assert_eq!(out, &[0, 166]);
     }
 }

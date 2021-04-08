@@ -173,7 +173,7 @@ pub fn write_surf<P: AsRef<Path> + Copy>(path: P, surf : &FsSurface) -> std::io:
     f.write_u8(surf.header.surf_magic[2])?;
 
     //f.write_all(b"Some surface\0")?;
-    f.write_all(b"Some surface\x00")?;
+    //f.write_all(b"Some surface\x00")?;
     //f.write_all(&[b'f', b'o', b'o', b'\0'])?;
 
     let output = std::ffi::CString::new("test").unwrap();
