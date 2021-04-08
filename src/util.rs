@@ -16,8 +16,14 @@ pub fn is_gz_file<P>(path: P) -> bool where P: AsRef<Path>, {
 }
 
 
-/// Read a variable length zero-terminated byte string from the input, until a '\0' is hit. The trailing '\0' is not consumed.
-pub fn read_variable_length_string<S>(input: &mut S) -> Result<String>
+/// Read C-stlye NUL-terminated byte string and return as String.
+///
+/// Read a variable length NUL-terminated byte string from the input, until a '\0' is hit. One can chose whether the trailing '\0' is consumed.
+///
+/// # Warnings
+///
+/// * Terrible things will happen if there is no NUL char in the input.
+pub fn read_variable_length_string<S>(input: &mut S, consume_zero : bool) -> Result<String>
     where
         S: Read + Seek,
     {
@@ -27,29 +33,42 @@ pub fn read_variable_length_string<S>(input: &mut S) -> Result<String>
             info_line.push(cur_char);
             cur_char = input.read_u8()? as char;            
         }
-        input.seek(SeekFrom::Current(-1))?;
+        if ! consume_zero {
+            input.seek(SeekFrom::Current(-1))?;
+        }
         Ok(info_line)
     }
 
-/// Read a variable length Freesurfer-stly byte string from the input.
+
+/// Read a variable length Freesurfer-style byte string from the input.
+///
+/// A FreeSurfer-style variable length string is a string terminated by two `\x0A`, or 'Unix line feed' ASCII characters.
+///
+/// # Warnings
+///
+/// * Terrible things will happen if the input does not contain a sequence of thwo consecutive `\x0A` chars.
 pub fn read_fs_variable_length_string<S>(input: &mut S) -> Result<String>
     where
         S: Read,
     {
-        let mut last_char = input.read_u8()? as char;
-        let mut cur_char = input.read_u8()? as char;
+        let mut last_char;
+        let mut cur_char : char = '0';
         let mut info_line = String::new();
-        panic!("not implemented yet")
-        while cur_char != '\0' {                        
+        loop {                        
+            last_char = cur_char;
+            cur_char = input.read_u8()? as char;
             info_line.push(cur_char);
-            cur_char = input.read_u8()? as char;            
+            if last_char == '\x0A' && cur_char == '\x0A' {
+                break;
+            }
         }
-        input.seek(SeekFrom::Current(-1))?;
         Ok(info_line)
     }
 
 
-/// Read a fixed length zero-terminated byte string of the given length from the input. Embedded '\0' chars are allowed, but not added to the returned String.
+/// Read fixed length NUL-terminated string.
+/// 
+/// Read a fixed length zero-terminated byte string of the given length from the input. Embedded '\0' chars are allowed, and the trailing one is not added to the returned String.
 pub fn read_fixed_length_string<S>(input: &mut S, len: usize) -> Result<String>
 where
     S: Read,
@@ -150,7 +169,7 @@ mod test {
         c.seek(SeekFrom::Start(0)).unwrap();
 
         // Re-read the data.
-        let s = read_variable_length_string(&mut c).unwrap();
+        let s = read_variable_length_string(&mut c, false).unwrap();
         let mut out = Vec::new();
         c.read_to_end(&mut out).unwrap();
 
@@ -158,5 +177,26 @@ mod test {
         //println!("out={:?}", out);
         assert_eq!(s, "test");
         assert_eq!(out, &[0, 166]);
+    }
+
+    #[test]
+    fn a_variable_length_fs_string_can_be_read() {
+        use std::io::{Cursor, Read, Seek, SeekFrom, Write};
+    
+        // Create our "file".
+        let mut c = Cursor::new(Vec::<u8>::new());
+        c.write(b"test\x0A\x0A").unwrap();
+        c.write(&[166 as u8]).unwrap();
+
+        // Seek to start
+        c.seek(SeekFrom::Start(0)).unwrap();
+
+        // Re-read the data.
+        let s = read_fs_variable_length_string(&mut c).unwrap();
+        let mut out = Vec::new();
+        c.read_to_end(&mut out).unwrap();
+
+        assert_eq!(s, "test\n\n");
+        assert_eq!(out, &[166]);
     }
 }

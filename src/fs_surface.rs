@@ -177,7 +177,7 @@ pub fn write_surf<P: AsRef<Path> + Copy>(path: P, surf : &FsSurface) -> std::io:
 
     //f.write_all(b"Some surface\0")?;
     //f.write_all(b"Some surface\x0A\x0A\x00")?;
-    f.write_all(b"test\x0A\x0A")?;        
+    f.write(b"test\x0A\x0A")?;        
     //f.write_all(&[b'f', b'o', b'o', b'\0'])?;
 
     //let output = std::ffi::CString::new("test").unwrap();
@@ -531,8 +531,8 @@ mod test {
         assert_eq!(149244, surf_re.header.num_vertices);
         assert_eq!(298484, surf_re.header.num_faces);
     
-        assert_eq!(149244 * 3, surf_re.mesh.num_vertices());
-        assert_eq!(298484 * 3, surf_re.mesh.num_faces());
+        assert_eq!(149244, surf_re.mesh.num_vertices());
+        assert_eq!(298484, surf_re.mesh.num_faces());
     }
 
 }
