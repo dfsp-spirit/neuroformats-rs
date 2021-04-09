@@ -2,7 +2,7 @@
 //!
 //! A label groups a number of vertices (for surface label) or voxels (for volume labels) together. E.g., all
 //! vertices which are part of a certain brain region can be stored in a label. Note though that nothing requires that the
-//! vertices of a label form a spatially adjacent patch. Each vertex or voxel can be assigned a scalar value.
+//! vertices of a label form a spatially adjacent patch. Each vertex or voxel that is part of the label can be assigned a scalar value.
 
 
 use std::fs::File;
@@ -28,9 +28,9 @@ impl FsLabel {
 
     /// Determine whether this is a binary label. 
     ///
-    /// A binary label assigns the same value (typically 0) to all its vertices.
+    /// A binary label assigns the same value (typically `0.0`) to all its vertices.
     /// Such a label is typically used to define a region of some sort, e.g., a single brain region extracted from a brain
-    /// surface parcellation (see FsAnnot). Whether or not the label is intended as a binary in/out region definition
+    /// surface parcellation (see FsAnnot). Whether or not the label is intended as a binary inside/outside region definition
     /// cannot be known, so treat the return value as an educated guess.
     ///
     /// # Panics
@@ -73,7 +73,7 @@ impl FsLabel {
     /// Generate data for the whole surface from this label.
     ///
     /// This is a simple convenience function that creates a data vector with the specified length and fills it with the label
-    /// value for vertices which are part of this label and sets the rets to the `not_in_label_value` (typically `f32::NAN`).
+    /// value for vertices which are part of this label and sets the rest to the `not_in_label_value` (typically `f32::NAN`).
     ///
     /// # Panics
     ///
