@@ -16,8 +16,8 @@ pub mod fs_mgh;
 
 
 pub use fs_curv::{FsCurvHeader, FsCurv, read_curv, write_curv};
-pub use fs_surface::{FsSurfaceHeader, FsSurface, BrainMesh, read_surf, coord_center, coord_extrema};
+pub use fs_surface::{FsSurfaceHeader, FsSurface, BrainMesh, read_surf, coord_center, coord_extrema, write_surf};
 pub use fs_label::{FsLabel, read_label, write_label};
 pub use fs_annot::{FsAnnot, FsAnnotColortable, read_annot};
-pub use fs_mgh::{FsMgh, FsMghHeader, FsMghData, read_mgh, MRI_UCHAR, MRI_INT, MRI_FLOAT, MRI_SHORT};
+pub use fs_mgh::{FsMgh, FsMghHeader, FsMghData, read_mgh, write_mgh, MRI_UCHAR, MRI_INT, MRI_FLOAT, MRI_SHORT};
 pub use util::{vec32minmax};
