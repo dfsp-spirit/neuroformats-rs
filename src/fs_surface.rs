@@ -21,7 +21,7 @@ use ndarray_stats::QuantileExt;
 
 pub const TRIS_MAGIC_FILE_TYPE_NUMBER: i32 = 16777214;
 
-/// Models the header of a FreeSurfer surf file containing a brain mesh.
+/// Models the header of a FreeSurfer surf file containing a brain mesh. Note that the `info_line` must contain only ASCII chars and end with two Unix EOLs, `\n\n`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FsSurfaceHeader {
     pub surf_magic: [u8; 3],
@@ -35,7 +35,7 @@ impl Default for FsSurfaceHeader {
     fn default() -> FsSurfaceHeader {
         FsSurfaceHeader {
             surf_magic: [255, 255, 254],
-            info_line: String::from(""),
+            info_line: String::from("A brain surface.\n\n"),
             num_vertices: 0,
             num_faces: 0
         }
@@ -173,16 +173,7 @@ pub fn write_surf<P: AsRef<Path> + Copy>(path: P, surf : &FsSurface) -> std::io:
     f.write_u8(surf.header.surf_magic[2])?;
 
     // Write the info line. It is a byte string that ends with 2 Unix linefeeds '\n' or '\x0A' (decimal 10). There is NOT any string terminator (no NUL byte).
-    // Note that 
-
-    //f.write_all(b"Some surface\0")?;
-    //f.write_all(b"Some surface\x0A\x0A\x00")?;
-    f.write(b"test\x0A\x0A")?;        
-    //f.write_all(&[b'f', b'o', b'o', b'\0'])?;
-
-    //let output = std::ffi::CString::new("test").unwrap();
-    //f.write(output.as_bytes_with_nul())?;
-
+    f.write(surf.header.info_line.as_bytes())?;
     f.write_i32(surf.header.num_vertices)?;
     f.write_i32(surf.header.num_faces)?;
 
