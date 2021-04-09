@@ -5,20 +5,20 @@ The `neuroformats` crate provides access to structural neuroimaging data in Rust
 
 ## Installation
 
-A very early version of the `neuroformats` crate [is on crates.io](https://crates.io/crates/neuroformats).
+The `neuroformats` crate [is on crates.io](https://crates.io/crates/neuroformats).
 
 To use the library in your project, add it as a dependency in your `Cargo.toml` file, e.g.:
 
 ```toml
 [dependencies]
-neuroformats = "0.2.1"
+neuroformats = "0.2.3"
 ```
 
 ## Features
 
 * Read and write FreeSurfer per-vertex data in curv format (like `subject/surf/lh.thickness`): functions `neuroformats::read_curv` and `write_curv`
-* Read brain meshes in FreeSurfer binary mesh format (like `subject/surf/lh.white`): `read_surf`
-* Read and write FreeSurfer label files (like `subject/label/lh.cortex.label`): `read_label`
+* Read and write brain meshes in FreeSurfer binary mesh format (like `subject/surf/lh.white`): `read_surf` and `write_surf`
+* Read and write FreeSurfer label files (like `subject/label/lh.cortex.label`): `read_label` and `write_label`
 * Read FreeSurfer brain surface parcellations (like `subject/label/lh.aparc.annot`): `read_annot`
 * Read and write FreeSurfer brain volumes and other data from MGH and MGZ files: `read_mgh` and `write_mgh`
 
@@ -57,8 +57,12 @@ Continuous integration results:
 
 The `neuroformats` crate is free software, dual-licensed under the [MIT](./LICENSE-MIT) or [APACHE-2](./LICENSE-APACHE2) licenses.
 
+### Contributions
+
+Contributions are very welcome. Please get in touch before making major changes to avoid wasted effort.
+
 ### Help and contact
 
-If you have trouble or found a bug, please [open an issue](https://github.com/dfsp-spirit/neuroformats-rs/issues) here on Github.
+If you want to discuss something, need help or found a bug, please [open an issue](https://github.com/dfsp-spirit/neuroformats-rs/issues) here on Github.
 
 The `neuroformats` crate was written by [Tim Schäfer](http://rcmd.org/ts/). You can find my email address on my website if you need to contact me.
