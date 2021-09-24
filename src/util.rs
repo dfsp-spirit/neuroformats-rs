@@ -1,17 +1,14 @@
 //! Utility functions used in all other neuroformats modules.
 
 use std::{path::Path};
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{Read};
 
 use crate::error::{Result};
 
 use byteordered::byteorder::ReadBytesExt;
 
 /// Check whether the file extension ends with ".gz".
-pub fn is_gz_file<P>(path: P) -> bool
-where
-    P: AsRef<Path>,
-{
+pub fn is_gz_file<P>(path: P) -> bool where P: AsRef<Path>, {
     path.as_ref()
         .file_name()
         .map(|a| a.to_string_lossy().ends_with(".gz"))
@@ -19,31 +16,47 @@ where
 }
 
 
-/// Read a variable length zero-terminated byte string from the input, until a '\0' is hit. The trailing '\0' is not consumed.
-pub fn read_variable_length_string<S>(input: &mut S) -> Result<String>
+/// Read a variable length Freesurfer-style byte string from the input.
+///
+/// A FreeSurfer-style variable length string is a string terminated by two `\x0A`, or 'Unix line feed' ASCII characters.
+///
+/// # Warnings
+///
+/// * Terrible things will happen if the input does not contain a sequence of two consecutive `\x0A` chars.
+pub fn read_fs_variable_length_string<S>(input: &mut S) -> Result<String>
     where
-        S: Read + Seek,
+        S: Read,
     {
-        let mut cur_char = input.read_u8()? as char;
-        let mut info_line = String::from(cur_char);
-        while cur_char != '\0' {
+        let mut last_char;
+        let mut cur_char : char = '0';
+        let mut info_line = String::new();
+        loop {                        
+            last_char = cur_char;
             cur_char = input.read_u8()? as char;
-            info_line.push(cur_char);            
+            info_line.push(cur_char);
+            if last_char == '\x0A' && cur_char == '\x0A' {
+                break;
+            }
         }
-        input.seek(SeekFrom::Current(-1))?;
         Ok(info_line)
     }
 
 
-/// Read a fixed length zero-terminated byte string of the given length from the input. Embedded '\0' chars are allowed, but not added to the returned String.
+/// Read fixed length NUL-terminated string.
+/// 
+/// Read a fixed length zero-terminated byte string of the given length from the input. The `len` value must include the trailing NUL byte position, if any. Embedded '\0' chars are allowed, and the trailing one (if any) is read but not added to the returned String (all others are).
 pub fn read_fixed_length_string<S>(input: &mut S, len: usize) -> Result<String>
 where
     S: Read,
 {
     let mut info_line = String::with_capacity(len);
-    for _  in 0..len   {
+    for char_idx  in 0..len   {
         let cur_char = input.read_u8()? as char;
-        if cur_char != '\0'  {
+        if char_idx == (len -1) {
+            if cur_char != '\0' {
+                info_line.push(cur_char);
+            }            
+        } else {
             info_line.push(cur_char);
         }
     }
@@ -120,5 +133,71 @@ mod test {
         let (min, max) = vec32minmax(&v, true);
         assert_abs_diff_eq!(min, 0.01, epsilon = 1e-8);
         assert_abs_diff_eq!(max, 0.9, epsilon = 1e-8);
+    }
+
+
+    #[test]
+    fn a_variable_length_fs_string_can_be_read() {
+        use std::io::{Cursor, Read, Seek, SeekFrom, Write};
+    
+        // Create our "file".
+        let mut c = Cursor::new(Vec::<u8>::new());
+        c.write(b"test\x0A\x0A").unwrap();
+        c.write(&[166 as u8]).unwrap();
+
+        // Seek to start
+        c.seek(SeekFrom::Start(0)).unwrap();
+
+        // Re-read the data.
+        let s = read_fs_variable_length_string(&mut c).unwrap();
+        let mut out = Vec::new();
+        c.read_to_end(&mut out).unwrap();
+
+        assert_eq!(s, "test\n\n");
+        assert_eq!(out, &[166]);
+        assert_eq!(7, c.position());
+    }
+
+    #[test]
+    fn a_fixed_length_nul_terminated_string_can_be_read() {
+        use std::io::{Cursor, Read, Seek, SeekFrom, Write};
+    
+        // Create our "file".
+        let mut c = Cursor::new(Vec::<u8>::new());
+        c.write(b"test\x0A\x0Atest\x00").unwrap();
+
+        // Seek to start
+        c.seek(SeekFrom::Start(0)).unwrap();
+
+        // Re-read the data.
+        let s = read_fixed_length_string(&mut c, 11 as usize).unwrap();
+        let mut out = Vec::new();
+        c.read_to_end(&mut out).unwrap();
+
+        assert_eq!(s, "test\n\ntest");
+        assert_eq!(out, &[]);
+        assert_eq!(11, c.position());
+    }
+
+    #[test]
+    fn a_fixed_length_without_termination_char_can_be_read() {
+        use std::io::{Cursor, Seek, SeekFrom, Write};
+    
+        // Create our "file".
+        let mut c = Cursor::new(Vec::<u8>::new());
+        c.write(b"test\x0A\x0Atestdonotreadthis").unwrap();
+
+        // Seek to start
+        c.seek(SeekFrom::Start(0)).unwrap();
+
+        // Re-read the data.
+        let s = read_fixed_length_string(&mut c, 10 as usize).unwrap();    
+
+        assert_eq!(s, "test\n\ntest");
+        assert_eq!(10, c.position());
+
+        let mut out = Vec::new();
+        c.read_to_end(&mut out).unwrap();
+        assert_eq!(23, c.position());
     }
 }

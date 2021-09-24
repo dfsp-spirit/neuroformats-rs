@@ -5,14 +5,14 @@
 //! These vertex indices are zero-based.
 
 
-use byteordered::{ByteOrdered};
+use byteordered::{ByteOrdered, Endianness};
 
 use std::{fs::File};
-use std::io::{BufReader, BufRead, Read, Seek};
+use std::io::{BufReader, BufRead, Read, BufWriter, Write};
 use std::path::{Path};
 use std::fmt;
 
-use crate::util::{read_variable_length_string};
+use crate::util::{read_fs_variable_length_string};
 use crate::error::{NeuroformatsError, Result};
 
 
@@ -20,9 +20,8 @@ use ndarray::{Array2, array, s};
 use ndarray_stats::QuantileExt;
 
 pub const TRIS_MAGIC_FILE_TYPE_NUMBER: i32 = 16777214;
-pub const TRIS_MAGIC_FILE_TYPE_NUMBER_ALTERNATIVE: i32 = 16777215;
 
-/// Models the header of a FreeSurfer surf file containing a brain mesh.
+/// Models the header of a FreeSurfer surf file containing a brain mesh. Note that the `info_line` must contain only ASCII chars and end with two Unix EOLs, `\n\n`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FsSurfaceHeader {
     pub surf_magic: [u8; 3],
@@ -35,8 +34,8 @@ pub struct FsSurfaceHeader {
 impl Default for FsSurfaceHeader {
     fn default() -> FsSurfaceHeader {
         FsSurfaceHeader {
-            surf_magic: [255; 3],
-            info_line: String::from(""),
+            surf_magic: [255, 255, 254],
+            info_line: String::from("A brain surface.\n\n"),
             num_vertices: 0,
             num_faces: 0
         }
@@ -58,19 +57,22 @@ impl FsSurfaceHeader {
     /// FsSurface header.
     pub fn from_reader<S>(input: &mut S) -> Result<FsSurfaceHeader>
     where
-        S: Read + Seek,
+        S: Read,
     {
         let mut hdr = FsSurfaceHeader::default();
     
         let mut input = ByteOrdered::be(input);
 
-        hdr.info_line = read_variable_length_string(&mut input)?;
+        hdr.surf_magic[0] = input.read_u8()?;
+        hdr.surf_magic[1] = input.read_u8()?;
+        hdr.surf_magic[2] = input.read_u8()?;
+        hdr.info_line = read_fs_variable_length_string(&mut input)?;
         hdr.num_vertices = input.read_i32()?;
         hdr.num_faces = input.read_i32()?;
         
         let magic: i32 = interpret_fs_int24(hdr.surf_magic[0], hdr.surf_magic[1], hdr.surf_magic[2]);
 
-        if !(magic == TRIS_MAGIC_FILE_TYPE_NUMBER || magic == TRIS_MAGIC_FILE_TYPE_NUMBER_ALTERNATIVE) {
+        if !(magic == TRIS_MAGIC_FILE_TYPE_NUMBER) {
             Err(NeuroformatsError::InvalidFsSurfaceFormat)
         } else {
             Ok(hdr)
@@ -158,6 +160,27 @@ pub fn interpret_fs_int24(b1: u8, b2:u8, b3:u8) -> i32 {
 
     let fs_int24: i32 = c1 as i32 + c2 as i32 + c3;
     fs_int24
+}
+
+
+/// Write an FsSurface struct to a file in FreeSurfer surf format.
+pub fn write_surf<P: AsRef<Path> + Copy>(path: P, surf : &FsSurface) -> std::io::Result<()> {
+    let f = File::create(path)?;
+    let f = BufWriter::new(f);  
+    let mut f  =  ByteOrdered::runtime(f, Endianness::Big); 
+    f.write_u8(surf.header.surf_magic[0])?;
+    f.write_u8(surf.header.surf_magic[1])?;
+    f.write_u8(surf.header.surf_magic[2])?;
+
+    // Write the info line. It is a byte string that ends with 2 Unix linefeeds '\n' or '\x0A' (decimal 10). There is NOT any string terminator (no NUL byte).
+    f.write(surf.header.info_line.as_bytes())?;
+    f.write_i32(surf.header.num_vertices)?;
+    f.write_i32(surf.header.num_faces)?;
+
+    for v in surf.mesh.vertices.iter() { f.write_f32(*v)?; }
+    for v in surf.mesh.faces.iter() { f.write_i32(*v)?; }
+    
+    Ok(())
 }
 
 
@@ -394,12 +417,17 @@ impl fmt::Display for FsSurface {
 #[cfg(test)]
 mod test { 
     use super::*;
+    use tempfile::{tempdir};
     use approx::assert_abs_diff_eq;
 
     #[test]
     fn the_demo_surf_file_can_be_read() {
         const SURF_FILE: &str = "resources/subjects_dir/subject1/surf/lh.white";
         let surf = read_surf(SURF_FILE).unwrap();
+
+        assert_eq!(255 as u8, surf.header.surf_magic[0]);
+        assert_eq!(255 as u8, surf.header.surf_magic[1]);
+        assert_eq!(254 as u8, surf.header.surf_magic[2]);
 
         assert_eq!(149244, surf.header.num_vertices);
         assert_eq!(298484, surf.header.num_faces);
@@ -477,6 +505,27 @@ mod test {
         assert_eq!(2.0, maxy);
         assert_eq!(4.0, maxz);
     }
+
+    #[test]
+    fn a_surface_file_can_be_written_and_reread() {
+        const SURF_FILE: &str = "resources/subjects_dir/subject1/surf/lh.white";
+        let surf = read_surf(SURF_FILE).unwrap();
+        
+        let dir = tempdir().unwrap();
+
+        let tfile_path = dir.path().join("temp-file.surface");
+        let tfile_path = tfile_path.to_str().unwrap();
+        write_surf(tfile_path, &surf).unwrap();
+
+        let surf_re = read_surf(tfile_path).unwrap();
+
+        assert_eq!(149244, surf_re.header.num_vertices);
+        assert_eq!(298484, surf_re.header.num_faces);
+    
+        assert_eq!(149244, surf_re.mesh.num_vertices());
+        assert_eq!(298484, surf_re.mesh.num_faces());
+    }
+
 }
 
 

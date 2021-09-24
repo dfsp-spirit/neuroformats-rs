@@ -1,6 +1,15 @@
 neuroformats Changes
 =====================
 
+Version 0.2.3
+-------------
+- Add write support for MGH and MGZ files: `write_mgh`.
+- Add write support for FreeSurfer surface files: `write_surf`.
+- Fix bug in reading of surface files (which would only happen for surfaces with an extreme vertex count that is never reached with brain meshes).
+- Add write support for FreeSurfer label files: `write_label`.
+- Add some utility methods for `FsLabel` structs.
+
+
 Version 0.2.2
 -------------
 - Implement Display trait for structs FsAnnot, FsAnnotColortable, FsMgh, FsSurface and BrainMesh.

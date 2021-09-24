@@ -2,11 +2,11 @@
 //!
 //! A label groups a number of vertices (for surface label) or voxels (for volume labels) together. E.g., all
 //! vertices which are part of a certain brain region can be stored in a label. Note though that nothing requires that the
-//! vertices of a label form a spatially adjacent patch. Each vertex or voxel can be assigned a scalar value.
+//! vertices of a label form a spatially adjacent patch. Each vertex or voxel that is part of the label can be assigned a scalar value.
 
 
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write, LineWriter};
 use std::path::{Path};
 use std::fmt;
 
@@ -28,9 +28,9 @@ impl FsLabel {
 
     /// Determine whether this is a binary label. 
     ///
-    /// A binary label assigns the same value (typically 0) to all its vertices.
+    /// A binary label assigns the same value (typically `0.0`) to all its vertices.
     /// Such a label is typically used to define a region of some sort, e.g., a single brain region extracted from a brain
-    /// surface parcellation (see [`FsAnnot`]). Whether or not the label is intended as a binary in/out region definition
+    /// surface parcellation (see FsAnnot). Whether or not the label is intended as a binary inside/outside region definition
     /// cannot be known, so treat the return value as an educated guess.
     ///
     /// # Panics
@@ -73,7 +73,7 @@ impl FsLabel {
     /// Generate data for the whole surface from this label.
     ///
     /// This is a simple convenience function that creates a data vector with the specified length and fills it with the label
-    /// value for vertices which are part of this label and sets the rets to the `not_in_label_value`.
+    /// value for vertices which are part of this label and sets the rest to the `not_in_label_value` (typically `f32::NAN`).
     ///
     /// # Panics
     ///
@@ -125,16 +125,16 @@ pub fn read_label<P: AsRef<Path>>(path: P) -> Result<FsLabel> {
         // We ignore the first line at index 0: it is a comment line.
         
         if index == 1 {
-            hdr_num_entries = line?.parse::<i32>().unwrap();
+            hdr_num_entries = line?.parse::<i32>().expect("Could not parse label header line.");
         }
         else if index >= 2 {
             let line = line?;
             let mut iter = line.split_whitespace();
-            label.vertex_index.push(iter.next().unwrap().parse::<i32>().unwrap());
-            label.coord1.push(iter.next().unwrap().parse::<f32>().unwrap());
-            label.coord2.push(iter.next().unwrap().parse::<f32>().unwrap());
-            label.coord3.push(iter.next().unwrap().parse::<f32>().unwrap());
-            label.value.push(iter.next().unwrap().parse::<f32>().unwrap());
+            label.vertex_index.push(iter.next().unwrap().parse::<i32>().expect("Expected vertex index of type i32."));
+            label.coord1.push(iter.next().unwrap().parse::<f32>().expect("Expected coord1 of type f32."));
+            label.coord2.push(iter.next().unwrap().parse::<f32>().expect("Expected coord2 of type f32."));
+            label.coord3.push(iter.next().unwrap().parse::<f32>().expect("Expected coord3 of type f32."));
+            label.value.push(iter.next().unwrap().parse::<f32>().expect("Expected vertex value of type f32."));
         }        
     }
 
@@ -146,9 +146,31 @@ pub fn read_label<P: AsRef<Path>>(path: P) -> Result<FsLabel> {
 }
 
 
+/// Write an FsLabel struct to a new file.
+pub fn write_label<P: AsRef<Path> + Copy>(path: P, label : &FsLabel) -> std::io::Result<()> {
+    let file = File::create(path)?;
+    let mut file = LineWriter::new(file);
+
+    let header_lines = format!("# FreeSurfer label.\n{}\n", label.vertex_index.len());
+    let header_lines = header_lines.as_bytes();
+    file.write_all(header_lines)?;
+
+    for (idx, _) in label.vertex_index.iter().enumerate() {
+        let vline = format!("{} {} {} {} {}\n", label.vertex_index[idx], label.coord1[idx], label.coord2[idx], label.coord3[idx], label.value[idx]);
+        let vline = vline.as_bytes();
+        file.write_all(vline)?;
+    }
+
+    file.flush()?;
+
+    Ok(())
+}
+
+
 #[cfg(test)]
 mod test { 
     use super::*;
+    use tempfile::{tempdir};
 
     #[test]
     fn the_demo_surface_label_file_can_be_read() {
@@ -177,4 +199,25 @@ mod test {
 
         assert_eq!(false, label.is_binary());
     }
+
+    #[test]
+    fn a_label_file_can_be_written_and_reread() {
+        const LABEL_FILE: &str = "resources/subjects_dir/subject1/label/lh.entorhinal_exvivo.label";
+        let label = read_label(LABEL_FILE).unwrap();
+
+        let dir = tempdir().unwrap();
+
+        let tfile_path = dir.path().join("temp-file.label");
+        let tfile_path = tfile_path.to_str().unwrap();
+        write_label(tfile_path, &label).unwrap();
+
+        let label_re = read_label(tfile_path).unwrap();
+        let expected_vertex_count: usize = 1085;
+        assert_eq!(expected_vertex_count, label_re.vertex_index.len());
+        assert_eq!(expected_vertex_count, label_re.coord1.len());
+        assert_eq!(expected_vertex_count, label_re.coord2.len());
+        assert_eq!(expected_vertex_count, label_re.coord3.len());
+        assert_eq!(expected_vertex_count, label_re.value.len());
+    }
+
 }
