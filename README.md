@@ -59,6 +59,8 @@ See the [neuroformats API docs](https://docs.rs/neuroformats) and the [unit test
 
 ### Unit tests and continuous integration
 
+Run `cargo test` in the repository root to run the tests locally.
+
 Continuous integration results:
 
 [![Build Status](https://travis-ci.org/dfsp-spirit/neuroformats-rs.svg?branch=main)](https://travis-ci.org/dfsp-spirit/neuroformats-rs) Travis CI under Linux
