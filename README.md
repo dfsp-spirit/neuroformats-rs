@@ -65,7 +65,7 @@ Run `cargo test` in the repository root to run the tests locally.
 
 Continuous integration results:
 
-[![Build Status](https://travis-ci.org/dfsp-spirit/neuroformats-rs.svg?branch=main)](https://travis-ci.org/dfsp-spirit/neuroformats-rs) Travis CI under Linux
+*We are currently switching to GitHub Actions, work in progess.*
 
 ### LICENSE
 
