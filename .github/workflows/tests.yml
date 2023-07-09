@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@nightly
-      - run: cargo test --features unstable
+      - run: cargo test
 
   windows:
     name: Test suite (windows)
@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@nightly
-      - run: cargo test --features unstable -- --skip ui --exact
+      - run: cargo test
 
   stable:
     name: Rust ${{matrix.rust}}
