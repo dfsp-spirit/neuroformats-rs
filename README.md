@@ -44,7 +44,7 @@ Various utility functions are implemented for performing common computations on 
 
 The `neuroformats` API docs can be found at [docs.rs/neuroformats](https://docs.rs/neuroformats).
 
-### Usage example
+### Short usage example
 
 Read vertex-wise cortical thickness computed by FreeSurfer:
 
@@ -55,6 +55,10 @@ let thickness_at_vertex_0 : f32 = curv.data[0];
 ```
 
 You now have a `Vec<f32>` with the cortical thickness values in `curv.data`. The order of the values matches the vertex order of the respective brain surface reconstruction (e.g., the white surface mesh of the left brain hemisphere in `subjects_dir/subject1/surf/lh.white`).
+
+### Full demo application
+
+There is a small command line demo application that loads a brain surface mesh and raytraces an image based on the mesh to a PNG file available in the [./examples/brain_rpt directory](./examples/brain_rpt/src/main.rs). The demo uses the [rpt crate by Eric Zhang and Alexander Morozov](https://lib.rs/crates/rpt) to do the raytracing.
 
 See the [neuroformats API docs](https://docs.rs/neuroformats) and the [unit tests in the source code](./src/) for more examples.
 
