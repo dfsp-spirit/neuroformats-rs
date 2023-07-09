@@ -1,54 +1,71 @@
+name: CI
+
 on:
-    pull_request:
-    push:
-      branches:
-        - main
-name: Test with Code Coverage
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  RUSTFLAGS: -Dwarnings
+
 jobs:
-    test:
-      name: Test
-      env:
-        PROJECT_NAME_UNDERSCORE: neuroformats_rs
-        CARGO_INCREMENTAL: 0
-        RUSTFLAGS: -Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort
-        RUSTDOCFLAGS: -Cpanic=abort
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@v3
-        - uses: actions-rs/toolchain@v1
-          with:
-            profile: minimal
-            toolchain: nightly
-            override: true
-        - name: Cache dependencies
-          uses: actions/cache@v2
-          env:
-            cache-name: cache-dependencies
-          with:
-            path: |
-              ~/.cargo/.crates.toml
-              ~/.cargo/.crates2.json
-              ~/.cargo/bin
-              ~/.cargo/registry/index
-              ~/.cargo/registry/cache
-              target
-            key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('Cargo.lock') }}
-        - name: Generate test result and coverage report
-          run: |
-            cargo install cargo2junit grcov;
-            cargo test $CARGO_OPTIONS -- -Z unstable-options --format json | cargo2junit > results.xml;
-            zip -0 ccov.zip `find . \( -name "$PROJECT_NAME_UNDERSCORE*.gc*" \) -print`;
-            grcov ccov.zip -s . -t lcov --llvm --ignore-not-existing --ignore "/*" --ignore "tests/*" -o lcov.info;
-        - name: Upload test results
-          uses: EnricoMi/publish-unit-test-result-action@v1
-          with:
-            check_name: Test Results
-            github_token: ${{ secrets.GITHUB_TOKEN }}
-            files: results.xml
-        - name: Upload to CodeCov
-          uses: codecov/codecov-action@v1
-          with:
-            # required for private repositories:
-            # token: ${{ secrets.CODECOV_TOKEN }}
-            files: ./lcov.info
-            fail_ci_if_error: true
+  test:
+    name: Test suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo test --features unstable
+
+  windows:
+    name: Test suite (windows)
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo test --features unstable -- --skip ui --exact
+
+  stable:
+    name: Rust ${{matrix.rust}}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: [stable, beta]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{matrix.rust}}
+      - run: cargo build
+
+  build:
+    name: Rust ${{matrix.rust}}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: [1.19.0, 1.20.0, 1.21.0, 1.25.0, 1.26.0, 1.34.0]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{matrix.rust}}
+      - run: cargo build
+
+  minimal:
+    name: Minimal versions
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo generate-lockfile -Z minimal-versions
+      - run: cargo check --locked --workspace
+
