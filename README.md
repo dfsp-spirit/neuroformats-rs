@@ -72,7 +72,9 @@ Run `cargo test` in the repository root to run the tests locally.
 
 Continuous integration results:
 
-Main branch: ![main](https://github.com/dfsp-spirit/neuroformats-rs/actions/workflows/tests.yml/badge.svg?branch=main)
+main branch: ![main](https://github.com/dfsp-spirit/neuroformats-rs/actions/workflows/tests.yml/badge.svg?branch=main)
+
+develop branch: ![main](https://github.com/dfsp-spirit/neuroformats-rs/actions/workflows/tests.yml/badge.svg?branch=develop)
 
 
 ### LICENSE
