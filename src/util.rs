@@ -1,7 +1,7 @@
 //! Utility functions used in all other neuroformats modules.
 
 use std::{path::Path};
-use std::io::{Read};
+use std::io::{BufRead};
 
 use crate::error::{Result};
 
@@ -25,7 +25,7 @@ pub fn is_gz_file<P>(path: P) -> bool where P: AsRef<Path>, {
 /// * Terrible things will happen if the input does not contain a sequence of two consecutive `\x0A` chars.
 pub fn read_fs_variable_length_string<S>(input: &mut S) -> Result<String>
     where
-        S: Read,
+        S: BufRead,
     {
         let mut last_char;
         let mut cur_char : char = '0';
@@ -47,7 +47,7 @@ pub fn read_fs_variable_length_string<S>(input: &mut S) -> Result<String>
 /// Read a fixed length zero-terminated byte string of the given length from the input. The `len` value must include the trailing NUL byte position, if any. Embedded '\0' chars are allowed, and the trailing one (if any) is read but not added to the returned String (all others are).
 pub fn read_fixed_length_string<S>(input: &mut S, len: usize) -> Result<String>
 where
-    S: Read,
+    S: BufRead,
 {
     let mut info_line = String::with_capacity(len);
     for char_idx  in 0..len   {
@@ -181,7 +181,7 @@ mod test {
 
     #[test]
     fn a_fixed_length_without_termination_char_can_be_read() {
-        use std::io::{Cursor, Seek, SeekFrom, Write};
+        use std::io::{Cursor, Read, Seek, SeekFrom, Write};
     
         // Create our "file".
         let mut c = Cursor::new(Vec::<u8>::new());

@@ -7,7 +7,7 @@ use ndarray::{Array, Array1, Array2, Array4, Dim, array};
 
 
 use std::{fs::File};
-use std::io::{BufReader, Read, BufWriter, Write};
+use std::io::{BufReader, BufRead, BufWriter, Write};
 use std::path::{Path};
 use std::fmt;
 
@@ -86,7 +86,7 @@ impl FsMghHeader {
         let mut file = BufReader::new(File::open(path)?);
 
         if gz {
-            FsMghHeader::from_reader(&mut GzDecoder::new(file))
+            FsMghHeader::from_reader(&mut BufReader::new(GzDecoder::new(file)))
         } else {
             FsMghHeader::from_reader(&mut file)
         }
@@ -97,7 +97,7 @@ impl FsMghHeader {
     /// Read an MGH header from the given byte stream.
     /// It is assumed that the input is currently at the start of the
     /// header.
-    pub fn from_reader<S>(input: &mut S) -> Result<FsMghHeader> where S: Read,
+    pub fn from_reader<S>(input: &mut S) -> Result<FsMghHeader> where S: BufRead,
     {
         let mut hdr = FsMghHeader::default();
     
@@ -206,7 +206,7 @@ impl FsMgh {
 
         let data = 
         if gz {
-            FsMgh::data_from_reader(&mut GzDecoder::new(file), &hdr)?
+            FsMgh::data_from_reader(&mut BufReader::new(GzDecoder::new(file)), &hdr)?
         } else {
             FsMgh::data_from_reader(&mut file, &hdr)?
         };
@@ -220,7 +220,7 @@ impl FsMgh {
 
 
     /// Read MGH data from a reader. It is assumed that position is before the header.
-    pub fn data_from_reader<S>(file: &mut S, hdr: &FsMghHeader) -> Result<FsMghData> where S: Read, {
+    pub fn data_from_reader<S>(file: &mut S, hdr: &FsMghHeader) -> Result<FsMghData> where S: BufRead, {
 
         let vol_dim = Dim([hdr.dim1len as usize, hdr.dim2len as usize, hdr.dim3len as usize, hdr.dim4len as usize]);
 

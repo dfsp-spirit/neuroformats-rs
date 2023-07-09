@@ -8,7 +8,7 @@
 use byteordered::{ByteOrdered, Endianness};
 
 use std::{fs::File};
-use std::io::{BufReader, BufRead, Read, BufWriter, Write};
+use std::io::{BufReader, BufRead, BufWriter, Write};
 use std::path::{Path};
 use std::fmt;
 
@@ -57,7 +57,7 @@ impl FsSurfaceHeader {
     /// FsSurface header.
     pub fn from_reader<S>(input: &mut S) -> Result<FsSurfaceHeader>
     where
-        S: Read,
+        S: BufRead,
     {
         let mut hdr = FsSurfaceHeader::default();
     
@@ -378,7 +378,7 @@ impl FsSurface {
     /// Read a brain mesh, i.e., the data part of an FsSurface instance, from a reader.
     pub fn mesh_from_reader<S>(input: &mut S, hdr: &FsSurfaceHeader) -> BrainMesh
     where
-        S: Read,
+        S: BufRead,
     {
     
         let mut input = ByteOrdered::be(input);
