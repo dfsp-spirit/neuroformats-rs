@@ -2,6 +2,8 @@
 Handling of structural neuroimaging file formats for [Rust](https://www.rust-lang.org/).
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8128102.svg)](https://doi.org/10.5281/zenodo.8128102)
+[<img alt="crates.io" src="https://img.shields.io/crates/v/neuroformats.svg?logo=rust" height="20">](https://crates.io/crates/neuroformats)
+[![docs.rs](https://img.shields.io/docsrs/neuroformats/0.2.3)](https://docs.rs/neuroformats/)
 
 The `neuroformats` crate provides access to structural neuroimaging data in Rust by implementing parsers for various file formats. The focus is on surface-based brain morphometry data, as produced from 3D or 4D magnetic resonance imaging (MRI) data by neuroimaging software suites like [FreeSurfer](http://freesurfer.net/), [CAT12](http://www.neuro.uni-jena.de/cat/) and others.
 
