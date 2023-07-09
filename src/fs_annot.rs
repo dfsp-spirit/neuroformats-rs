@@ -46,7 +46,7 @@ impl FsAnnotColortable {
         let mut b: Vec<i32> = Vec::with_capacity(num_colortable_entries as usize);
         let mut a: Vec<i32> = Vec::with_capacity(num_colortable_entries as usize);
         let mut label: Vec<i32> = Vec::with_capacity(num_colortable_entries as usize);
-    
+
         for idx in 0..num_colortable_entries as usize {
             id.push(input.read_i32()?);
             let num_chars_region_name: i32 = input.read_i32()?; // Length of following string.
@@ -59,7 +59,7 @@ impl FsAnnotColortable {
             label.push(r[idx] + g[idx]*(2 as i32).pow(8) + b[idx]*(2 as i32).pow(16) + a[idx]*(2 as i32).pow(24));
         }
 
-        let ct = FsAnnotColortable { 
+        let ct = FsAnnotColortable {
             id: id,
             name: name,
             r: r,
@@ -73,8 +73,8 @@ impl FsAnnotColortable {
     }
 }
 
-impl fmt::Display for FsAnnotColortable {    
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {        
+impl fmt::Display for FsAnnotColortable {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Colortable for {} brain regions.", self.id.len())
     }
 }
@@ -117,13 +117,13 @@ impl FsAnnot {
 
             let colortable: FsAnnotColortable = FsAnnotColortable::from_reader(&mut file)?;
 
-            let annot = FsAnnot { 
+            let annot = FsAnnot {
                 vertex_indices: vertex_indices,
                 vertex_labels: vertex_labels,
                 colortable: colortable,
             };
 
-            Ok(annot)    
+            Ok(annot)
         } else {
             Err(NeuroformatsError::UnsupportedFsAnnotFormatVersion)
         }
@@ -144,6 +144,13 @@ impl FsAnnot {
 
 
     /// Get the number of regions contained in the [`FsAnnot`] struct, or its [`FsAnnotColortable`].
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// let annot = neuroformats::read_annot("/path/to/subjects_dir/subject1/label/lh.aparc.annot").unwrap();
+    /// annot.num_regions();
+    /// ```
     pub fn num_regions(&self) -> usize {
         self.regions().len()
     }
@@ -214,7 +221,7 @@ impl FsAnnot {
         let mut vert_colortable_indices: Vec<usize> = Vec::with_capacity(self.vertex_labels.len());
         for vlabel in self.vertex_labels.iter() {
             let mut found = false;
-            for (region_idx, region_label) in self.colortable.label.iter().enumerate() {            
+            for (region_idx, region_label) in self.colortable.label.iter().enumerate() {
                 if vlabel == region_label {
                     vert_colortable_indices.push(region_idx);
                     found = true;
@@ -235,13 +242,13 @@ impl FsAnnot {
     ///
     /// # Parameters
     ///
-    /// * `alpha`: whether to return the alpha channel value. 
+    /// * `alpha`: whether to return the alpha channel value.
     /// * `unmatched_region_index`: Determines the region and thus the color that is used for unassigned vertices. This is the region index to use for vertices with a label that does not match any region label. Typically they are assigned to an `unknown` region, which should be at the start of the colortable (at index `0`). If in doubt, check the region names of the annot with [`FsAnnot::regions`].
     ///
     /// # Panics
     ///
     /// * If the `unmatched_region_index` is out of range for this FsAnnot, see [`FsAnnot::num_regions`] to check before calling this function.
-    /// 
+    ///
     /// # Examples
     ///
     /// ```no_run
@@ -269,8 +276,8 @@ impl FsAnnot {
 }
 
 
-impl fmt::Display for FsAnnot {    
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {        
+impl fmt::Display for FsAnnot {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Surface parcellation assigning {} vertices to {} brain regions.", self.vertex_indices.len(), self.colortable.id.len())
     }
 }
@@ -280,7 +287,7 @@ impl fmt::Display for FsAnnot {
 ///
 /// A parcellation assigns each vertex of a brain surface mesh to exactly one brain region.
 /// The colortable contains data on the regions, including the region's
-/// name, an RGB display color, and a unique identifier. A parcellation is the result of 
+/// name, an RGB display color, and a unique identifier. A parcellation is the result of
 /// applying a brain atlas to the brain surface reconstruction of a subject.
 ///
 /// # See also
@@ -300,7 +307,7 @@ pub fn read_annot<P: AsRef<Path> + Copy>(path: P) -> Result<FsAnnot> {
 
 
 #[cfg(test)]
-mod test { 
+mod test {
     use super::*;
 
     #[test]
@@ -357,7 +364,7 @@ mod test {
         assert_eq!(149244, annot.vertex_indices.len());
 
         let mut region_indices : Vec<usize> = annot.vertex_colortable_indices(0);
-        
+
         region_indices.sort();
         assert_eq!(*region_indices.first().unwrap(), 0 as usize);
         assert_eq!(*region_indices.last().unwrap(), 35 as usize);
@@ -377,5 +384,5 @@ mod test {
         assert_eq!(col_rgb.len(), annot.vertex_indices.len() * 3);
     }
 
-    
+
 }
