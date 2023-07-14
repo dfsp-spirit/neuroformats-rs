@@ -26,6 +26,11 @@ features = ["approx"]
 
 [dev-dependencies]
 tempfile = "3.2.0"
+criterion = "0.4"
+
+[[bench]]
+name = "benchmark"
+harness = false
 
 [profile.dev]
 opt-level = 3
