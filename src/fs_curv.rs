@@ -8,7 +8,7 @@ use byteordered::{ByteOrdered, Endianness};
 use flate2::bufread::GzDecoder;
 
 use std::fs::File;
-use std::io::{BufReader, Read, BufWriter};
+use std::io::{BufReader, BufRead, BufWriter};
 use std::path::{Path};
 use std::fmt;
 
@@ -47,7 +47,7 @@ impl FsCurvHeader {
         let gz = is_gz_file(&path);
         let file = BufReader::new(File::open(path)?);
         if gz {
-            FsCurvHeader::from_reader(GzDecoder::new(file))
+            FsCurvHeader::from_reader(BufReader::new(GzDecoder::new(file)))
         } else {
             FsCurvHeader::from_reader(file)
         }
@@ -59,7 +59,7 @@ impl FsCurvHeader {
     /// Curv header.
     pub fn from_reader<S>(input: S) -> Result<FsCurvHeader>
     where
-        S: Read,
+        S: BufRead,
     {
         let mut hdr = FsCurvHeader::default();
     
@@ -144,8 +144,11 @@ impl FsCurv {
 
         let file = BufReader::new(File::open(path)?);
 
-
-        let data: Vec<f32> = if gz { FsCurv::curv_data_from_reader(GzDecoder::new(file), &hdr) } else  { FsCurv::curv_data_from_reader(file, &hdr) };
+        let data: Vec<f32> = if gz {
+            FsCurv::curv_data_from_reader(BufReader::new(GzDecoder::new(file)), &hdr)
+        } else {
+            FsCurv::curv_data_from_reader(file, &hdr)
+        };
 
         let curv = FsCurv { 
             header : hdr,
@@ -158,7 +161,7 @@ impl FsCurv {
 
     pub fn curv_data_from_reader<S>(input: S, hdr: &FsCurvHeader) -> Vec<f32>
     where
-        S: Read,
+        S: BufRead,
     {
     
         let mut input = ByteOrdered::be(input);

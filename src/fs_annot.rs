@@ -7,7 +7,7 @@
 use byteordered::{ByteOrdered};
 
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, BufRead};
 use std::path::{Path};
 use std::fmt;
 
@@ -31,7 +31,7 @@ impl FsAnnotColortable {
     /// Read a colortable in format version 2 from a reader. The reader must be at the start position of the colortable.
     pub fn from_reader<S>(input: &mut S) -> Result<FsAnnotColortable>
     where
-        S: Read,
+        S: BufRead,
     {
         let mut input = ByteOrdered::be(input);
 
