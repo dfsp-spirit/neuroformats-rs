@@ -92,6 +92,20 @@ pub struct FsLabelVertex {
     pub value: f32,
 }
 
+// Read a FsLabelVertex from a line.
+impl std::str::FromStr for FsLabelVertex {
+    type Err = NeuroformatsError;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        let mut iter = s.split_whitespace();
+        let index = iter.next().unwrap().parse::<i32>().expect("Expected vertex index of type i32.");
+        let coord1 = iter.next().unwrap().parse::<f32>().expect("Expected coord1 of type f32.");
+        let coord2 = iter.next().unwrap().parse::<f32>().expect("Expected coord2 of type f32.");
+        let coord3 = iter.next().unwrap().parse::<f32>().expect("Expected coord3 of type f32.");
+        let value = iter.next().unwrap().parse::<f32>().expect("Expected vertex value of type f32.");
+        Ok(FsLabelVertex{ index, coord1, coord2, coord3, value })
+    }
+}
+
 /// Read a surface label or volume label from a file in FreeSurfer label format.
 ///
 /// A label groups a number of vertices (for surface label) or voxels (for volume labels) together. It can
@@ -117,13 +131,8 @@ pub fn read_label<P: AsRef<Path>>(path: P) -> Result<FsLabel> {
     let mut vertexes = Vec::with_capacity(hdr_num_entries as usize);
     for line in lines {
         let line = line?;
-        let mut iter = line.split_whitespace();
-        let index = iter.next().unwrap().parse::<i32>().expect("Expected vertex index of type i32.");
-        let coord1 = iter.next().unwrap().parse::<f32>().expect("Expected coord1 of type f32.");
-        let coord2 = iter.next().unwrap().parse::<f32>().expect("Expected coord2 of type f32.");
-        let coord3 = iter.next().unwrap().parse::<f32>().expect("Expected coord3 of type f32.");
-        let value = iter.next().unwrap().parse::<f32>().expect("Expected vertex value of type f32.");
-        vertexes.push(FsLabelVertex{ index, coord1, coord2, coord3, value });
+        let vertex = line.parse()?;
+        vertexes.push(vertex);
     }
 
     if hdr_num_entries as usize != vertexes.len() {
