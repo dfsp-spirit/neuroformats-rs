@@ -93,7 +93,8 @@ pub struct FsCurv {
 
 impl fmt::Display for FsCurv {    
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {        
-        write!(f, "Per-vertex data for {} vertices, with values in range {} to {}.", self.data.len(), vec32minmax(&self.data, false).0, vec32minmax(&self.data, false).1)
+        let (min, max) = vec32minmax(self.data.iter().copied(), false);
+        write!(f, "Per-vertex data for {} vertices, with values in range {} to {}.", self.data.len(), min, max)
     }
 }
 
@@ -200,7 +201,7 @@ mod test {
         assert_eq!(149244, curv.data.len());        
 
         use crate::util::vec32minmax;
-        let (min, max) = vec32minmax(&curv.data, false);
+        let (min, max) = vec32minmax(curv.data.into_iter(), false);
         assert_abs_diff_eq!(0.0, min, epsilon = 1e-10);
         assert_abs_diff_eq!(5.0, max, epsilon = 1e-10);
     }
@@ -224,7 +225,7 @@ mod test {
         assert_eq!(149244, curv_re.data.len());        
 
         use crate::util::vec32minmax;
-        let (min, max) = vec32minmax(&curv_re.data, false);
+        let (min, max) = vec32minmax(curv_re.data.into_iter(), false);
         assert_abs_diff_eq!(0.0, min, epsilon = 1e-10);
         assert_abs_diff_eq!(5.0, max, epsilon = 1e-10);
     }

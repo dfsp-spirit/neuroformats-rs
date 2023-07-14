@@ -16,13 +16,8 @@ use crate::util::vec32minmax;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FsLabel {
-    pub vertex_index: Vec<i32>,
-    pub coord1: Vec<f32>,
-    pub coord2: Vec<f32>,
-    pub coord3: Vec<f32>,
-    pub value: Vec<f32>,
+    pub vertexes: Vec<FsLabelVertex>,
 }
-
 
 impl FsLabel {
 
@@ -37,15 +32,9 @@ impl FsLabel {
     ///
     /// * If the label is empty, i.e., contains no values.
     pub fn is_binary(&self) -> bool {
-        let first_val = self.value.first().expect("Empty label");
-        for (idx, val) in self.value.iter().enumerate() {
-            if idx > 0 {
-                if val != first_val {
-                    return false;
-                }
-            }
-        }
-        true
+        let mut values_iter = self.vertexes.iter().map(|x| x.value);
+        let first_val = values_iter.next().expect("Empty label");
+        values_iter.all(|val| val == first_val)
     }
 
 
@@ -58,13 +47,13 @@ impl FsLabel {
     ///
     /// * If `num_surface_verts` is smaller than the max index stored in the label. If this happens, the label cannot belong to the respective surface.
     pub fn is_surface_vertex_in_label(&self, num_surface_verts: usize) -> Vec<bool> {
-        if num_surface_verts < self.vertex_index.len() {
+        if num_surface_verts < self.vertexes.len() {
             // In this case, num_surface_verts is definitely wrong, but we do not check the max index here, which means stuff can still go wrong below.
-            panic!("Invalid vertex count 'num_surface_verts' for surface: label contains {} vertices, surface cannot contain only {}.", self.vertex_index.len(), num_surface_verts);
+            panic!("Invalid vertex count 'num_surface_verts' for surface: label contains {} vertices, surface cannot contain only {}.", self.vertexes.len(), num_surface_verts);
         }
         let mut data_bin = vec![false; num_surface_verts];
-        for label_vert_idx in self.vertex_index.iter() {
-            data_bin[*label_vert_idx as usize] = true;
+        for label_vert in self.vertexes.iter() {
+            data_bin[label_vert.index as usize] = true;
         }
         data_bin
     }
@@ -80,8 +69,8 @@ impl FsLabel {
     /// * If `num_surface_verts` is smaller than the max index stored in the label. If this happens, the label cannot belong to the respective surface.
     pub fn as_surface_data(&self, num_surface_verts : usize, not_in_label_value : f32) -> Vec<f32> {
         let mut surface_data : Vec<f32> = vec![not_in_label_value; num_surface_verts];
-        for (label_vert_idx, surface_vert_idx) in self.vertex_index.iter().enumerate() {
-            surface_data[*surface_vert_idx as usize] = self.value[label_vert_idx];
+        for surface_vert in self.vertexes.iter() {
+            surface_data[surface_vert.index as usize] = surface_vert.value;
         }
         surface_data
     }
@@ -89,11 +78,19 @@ impl FsLabel {
 
 impl fmt::Display for FsLabel {    
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {        
-        write!(f, "Label for {} vertices/voxels, with label values in range {} to {}.", self.vertex_index.len(), vec32minmax(&self.value, false).0, vec32minmax(&self.value, false).1)
+        let (min, max) = vec32minmax(self.vertexes.iter().map(|v| v.value), false);
+        write!(f, "Label for {} vertices/voxels, with label values in range {} to {}.", self.vertexes.len(), min, max)
     }
 }
 
-
+#[derive(Debug, Clone, PartialEq)]
+pub struct FsLabelVertex {
+    pub index: i32,
+    pub coord1: f32,
+    pub coord2: f32,
+    pub coord3: f32,
+    pub value: f32,
+}
 
 /// Read a surface label or volume label from a file in FreeSurfer label format.
 ///
@@ -104,44 +101,35 @@ impl fmt::Display for FsLabel {
 ///
 /// ```no_run
 /// let label = neuroformats::read_label("/path/to/subjects_dir/subject1/label/lh.entorhinal_exvivo.label").unwrap();
-/// println!("Vertex #{} has coordinates {} {} {} and is assigned value {}.", label.vertex_index[0], label.coord1[0], label.coord2[0], label.coord3[0], label.value[0]);
+/// let first = &label.vertexes[0];
+/// println!("Vertex #{} has coordinates {} {} {} and is assigned value {}.", first.index, first.coord1, first.coord2, first.coord3, first.value);
 /// ```
 pub fn read_label<P: AsRef<Path>>(path: P) -> Result<FsLabel> {
 
     let reader = BufReader::new(File::open(path)?);
 
-    let mut label = FsLabel {
-        vertex_index : Vec::new(),
-        coord1 : Vec::new(),
-        coord2 : Vec::new(),
-        coord3 : Vec::new(),
-        value : Vec::new(),
-    };
-
-    let mut hdr_num_entries: i32 = 0;
-
     // Read the file line by line using the lines() iterator from std::io::BufRead.
-    for (index, line) in reader.lines().enumerate() {
-        // We ignore the first line at index 0: it is a comment line.
-        
-        if index == 1 {
-            hdr_num_entries = line?.parse::<i32>().expect("Could not parse label header line.");
-        }
-        else if index >= 2 {
-            let line = line?;
-            let mut iter = line.split_whitespace();
-            label.vertex_index.push(iter.next().unwrap().parse::<i32>().expect("Expected vertex index of type i32."));
-            label.coord1.push(iter.next().unwrap().parse::<f32>().expect("Expected coord1 of type f32."));
-            label.coord2.push(iter.next().unwrap().parse::<f32>().expect("Expected coord2 of type f32."));
-            label.coord3.push(iter.next().unwrap().parse::<f32>().expect("Expected coord3 of type f32."));
-            label.value.push(iter.next().unwrap().parse::<f32>().expect("Expected vertex value of type f32."));
-        }        
+    let mut lines = reader.lines();
+    // We ignore the first line at index 0: it is a comment line.
+    let _comment_line = lines.next().transpose()?;
+    // The line 1 (after comment) is the header
+    let hdr_num_entries: i32 = lines.next().transpose()?.and_then(|header| header.parse::<i32>().ok()).expect("Could not parse label header line.");
+    let mut vertexes = Vec::with_capacity(hdr_num_entries as usize);
+    for line in lines {
+        let line = line?;
+        let mut iter = line.split_whitespace();
+        let index = iter.next().unwrap().parse::<i32>().expect("Expected vertex index of type i32.");
+        let coord1 = iter.next().unwrap().parse::<f32>().expect("Expected coord1 of type f32.");
+        let coord2 = iter.next().unwrap().parse::<f32>().expect("Expected coord2 of type f32.");
+        let coord3 = iter.next().unwrap().parse::<f32>().expect("Expected coord3 of type f32.");
+        let value = iter.next().unwrap().parse::<f32>().expect("Expected vertex value of type f32.");
+        vertexes.push(FsLabelVertex{ index, coord1, coord2, coord3, value });
     }
 
-    if hdr_num_entries as usize != label.vertex_index.len() {
+    if hdr_num_entries as usize != vertexes.len() {
         Err(NeuroformatsError::InvalidFsLabelFormat)
     } else {
-        Ok(label)
+        Ok(FsLabel{ vertexes })
     }
 }
 
@@ -151,12 +139,12 @@ pub fn write_label<P: AsRef<Path> + Copy>(path: P, label : &FsLabel) -> std::io:
     let file = File::create(path)?;
     let mut file = LineWriter::new(file);
 
-    let header_lines = format!("# FreeSurfer label.\n{}\n", label.vertex_index.len());
+    let header_lines = format!("# FreeSurfer label.\n{}\n", label.vertexes.len());
     let header_lines = header_lines.as_bytes();
     file.write_all(header_lines)?;
 
-    for (idx, _) in label.vertex_index.iter().enumerate() {
-        let vline = format!("{} {} {} {} {}\n", label.vertex_index[idx], label.coord1[idx], label.coord2[idx], label.coord3[idx], label.value[idx]);
+    for vertex in label.vertexes.iter() {
+        let vline = format!("{} {} {} {} {}\n", vertex.index, vertex.coord1, vertex.coord2, vertex.coord3, vertex.value);
         let vline = vline.as_bytes();
         file.write_all(vline)?;
     }
@@ -178,11 +166,7 @@ mod test {
         let label = read_label(LABEL_FILE).unwrap();
 
         let expected_vertex_count: usize = 1085;
-        assert_eq!(expected_vertex_count, label.vertex_index.len());
-        assert_eq!(expected_vertex_count, label.coord1.len());
-        assert_eq!(expected_vertex_count, label.coord2.len());
-        assert_eq!(expected_vertex_count, label.coord3.len());
-        assert_eq!(expected_vertex_count, label.value.len());
+        assert_eq!(expected_vertex_count, label.vertexes.len());
     }
 
     #[test]
@@ -213,11 +197,7 @@ mod test {
 
         let label_re = read_label(tfile_path).unwrap();
         let expected_vertex_count: usize = 1085;
-        assert_eq!(expected_vertex_count, label_re.vertex_index.len());
-        assert_eq!(expected_vertex_count, label_re.coord1.len());
-        assert_eq!(expected_vertex_count, label_re.coord2.len());
-        assert_eq!(expected_vertex_count, label_re.coord3.len());
-        assert_eq!(expected_vertex_count, label_re.value.len());
+        assert_eq!(expected_vertex_count, label_re.vertexes.len());
     }
 
 }
