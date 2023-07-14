@@ -14,16 +14,9 @@ use std::fmt;
 use crate::util::read_fixed_length_string;
 use crate::error::{NeuroformatsError, Result};
 
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct FsAnnotColortable {
-    pub id: Vec<i32>,  // A region index, not really needed. The 'label' is unique as well and more relevant, see below.
-    pub name: Vec<String>,
-    pub r: Vec<i32>,
-    pub g: Vec<i32>,
-    pub b: Vec<i32>,
-    pub a: Vec<i32>,
-    pub label: Vec<i32>, // A unique label computed from r,g,b. Used in annot.vertex_labels to identify the region.
+    pub regions: Vec<FsAnnotColorRegion>,
 }
 
 impl FsAnnotColortable {
@@ -39,46 +32,59 @@ impl FsAnnotColortable {
         let _orig_filename = read_fixed_length_string(&mut input, num_chars_orig_filename as usize);
         let num_colortable_entries: i32 = input.read_i32()?; // Yes, it is stored twice. Once here, once before.
 
-        let mut id: Vec<i32> = Vec::with_capacity(num_colortable_entries as usize);
-        let mut name: Vec<String> = Vec::with_capacity(num_colortable_entries as usize);
-        let mut r: Vec<i32> = Vec::with_capacity(num_colortable_entries as usize);
-        let mut g: Vec<i32> = Vec::with_capacity(num_colortable_entries as usize);
-        let mut b: Vec<i32> = Vec::with_capacity(num_colortable_entries as usize);
-        let mut a: Vec<i32> = Vec::with_capacity(num_colortable_entries as usize);
-        let mut label: Vec<i32> = Vec::with_capacity(num_colortable_entries as usize);
-
-        for idx in 0..num_colortable_entries as usize {
-            id.push(input.read_i32()?);
-            let num_chars_region_name: i32 = input.read_i32()?; // Length of following string.
-            name.push(read_fixed_length_string(&mut input, num_chars_region_name as usize)?);
-            r.push(input.read_i32()?);
-            g.push(input.read_i32()?);
-            b.push(input.read_i32()?);
-            a.push(input.read_i32()?);
-
-            label.push(r[idx] + g[idx]*(2 as i32).pow(8) + b[idx]*(2 as i32).pow(16) + a[idx]*(2 as i32).pow(24));
-        }
-
-        let ct = FsAnnotColortable {
-            id: id,
-            name: name,
-            r: r,
-            g: g,
-            b: b,
-            a: a,
-            label: label,
-        };
-
-        Ok(ct)
+        let entries = (0..num_colortable_entries)
+            .into_iter()
+            .map(|_idx| {
+                FsAnnotColorRegion::from_reader(input.inner_mut())
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(FsAnnotColortable{regions: entries})
     }
 }
 
 impl fmt::Display for FsAnnotColortable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Colortable for {} brain regions.", self.id.len())
+        write!(f, "Colortable for {} brain regions.", self.regions.len())
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct FsAnnotColorRegion {
+    pub id: i32,  // A region index, not really needed. The 'label' is unique as well and more relevant, see below.
+    pub name: String,
+    pub r: i32,
+    pub g: i32,
+    pub b: i32,
+    pub a: i32,
+    pub label: i32, // A unique label computed from r,g,b. Used in annot.vertex_labels to identify the region.
+}
+
+impl FsAnnotColorRegion {
+    pub fn from_reader<S>(input: &mut S) -> Result<FsAnnotColorRegion>
+    where
+        S: BufRead,
+    {
+        let mut input = ByteOrdered::be(input);
+        let id = input.read_i32()?;
+        let num_chars_region_name: i32 = input.read_i32()?; // Length of following string.
+        let name = read_fixed_length_string(&mut input, num_chars_region_name as usize)?;
+        let r = input.read_i32()?;
+        let g = input.read_i32()?;
+        let b = input.read_i32()?;
+        let a = input.read_i32()?;
+
+        let label = r + g * 2i32.pow(8) + b * 2i32.pow(16) + a * 2i32.pow(24);
+        Ok(FsAnnotColorRegion {
+            id,
+            name,
+            r,
+            g,
+            b,
+            a,
+            label,
+        })
+    }
+}
 
 /// Models a FreeSurfer brain surface parcellation from an annot file. This is the result of applying a brain atlas (like Desikan-Killiani) to a subject. The `vertex_indices` are the 0-based indices used in FreeSurfer and should be ignored. The `vertex_labels` field contains the mesh vertices in order, and assigns to each vertex a brain region using the `label` field (not the `id` field!) from the `colortable`. The field `colortable` contains an [`FsAnnotColortable`] struct that describes the brain regions.
 #[derive(Debug, Clone, PartialEq)]
@@ -138,8 +144,7 @@ impl FsAnnot {
     /// annot.regions();
     /// ```
     pub fn regions(&self) -> Vec<String> {
-        let region_names = self.colortable.name.clone();
-        region_names
+        self.colortable.regions.iter().map(|entry| entry.name.clone()).collect()
     }
 
 
@@ -171,16 +176,12 @@ impl FsAnnot {
     /// annot.region_vertices(String::from("bankssts"));
     /// ```
     pub fn region_vertices(&self, region : String) -> Vec<usize> {
-        let region_idx = self.colortable.name.iter().position(|x| *x == region).expect("No such region in annot.");
-        let region_label = self.colortable.label[region_idx];
-
-        let mut region_verts : Vec<usize> = Vec::new();
-        for (idx, vlabel) in self.vertex_labels.iter().enumerate() {
-            if vlabel == &region_label {
-                region_verts.push(idx);
-            }
-        }
-        region_verts
+        let region = self.colortable.regions.iter().find(|x| &x.name == &region).expect("No such region in annot.");
+        self.vertex_labels
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, vlabel)| (vlabel == &region.label).then_some(idx))
+            .collect()
     }
 
 
@@ -194,10 +195,9 @@ impl FsAnnot {
     /// ```
     pub fn vertex_regions(&self) -> Vec<String> {
         let mut vert_regions: Vec<String> = Vec::with_capacity(self.vertex_labels.len());
-        for region in self.colortable.name.clone() {
-            let region_idx = self.colortable.name.iter().position(|x| *x == region).expect("No such region in annot.");
-            let region_label = self.colortable.label[region_idx];
-            let region_name = self.colortable.name[region_idx].clone();
+        for region in self.colortable.regions.iter() {
+            let region_label = region.label;
+            let region_name = &region.name;
             for (idx, vlabel) in self.vertex_labels.iter().enumerate() {
                 if vlabel == &region_label {
                     vert_regions[idx] = region_name.clone();
@@ -221,8 +221,8 @@ impl FsAnnot {
         let mut vert_colortable_indices: Vec<usize> = Vec::with_capacity(self.vertex_labels.len());
         for vlabel in self.vertex_labels.iter() {
             let mut found = false;
-            for (region_idx, region_label) in self.colortable.label.iter().enumerate() {
-                if vlabel == region_label {
+            for (region_idx, region) in self.colortable.regions.iter().enumerate() {
+                if vlabel == &region.label {
                     vert_colortable_indices.push(region_idx);
                     found = true;
                     break;
@@ -262,12 +262,13 @@ impl FsAnnot {
         let capacity = if alpha { self.vertex_labels.len() * 4 } else { self.vertex_labels.len() * 3 };
         let mut vert_colors: Vec<u8> = Vec::with_capacity(capacity);
 
-        for ct_region_idx in self.vertex_colortable_indices(unmatched_region_index).iter() {
-            vert_colors.push(self.colortable.r[*ct_region_idx].clone() as u8);
-            vert_colors.push(self.colortable.g[*ct_region_idx].clone() as u8);
-            vert_colors.push(self.colortable.b[*ct_region_idx].clone() as u8);
+        for ct_region_idx in self.vertex_colortable_indices(unmatched_region_index) {
+            let region = &self.colortable.regions[ct_region_idx];
+            vert_colors.push(region.r as u8);
+            vert_colors.push(region.g as u8);
+            vert_colors.push(region.b as u8);
             if alpha {
-                vert_colors.push(self.colortable.a[*ct_region_idx].clone() as u8);
+                vert_colors.push(region.a as u8);
             }
         }
         vert_colors
@@ -278,7 +279,7 @@ impl FsAnnot {
 
 impl fmt::Display for FsAnnot {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Surface parcellation assigning {} vertices to {} brain regions.", self.vertex_indices.len(), self.colortable.id.len())
+        write!(f, "Surface parcellation assigning {} vertices to {} brain regions.", self.vertex_indices.len(), self.colortable.regions.len())
     }
 }
 
@@ -318,21 +319,16 @@ mod test {
         assert_eq!(149244, annot.vertex_indices.len());
         assert_eq!(149244, annot.vertex_labels.len());
 
-        assert_eq!(36, annot.colortable.id.len());
-        assert_eq!(36, annot.colortable.name.len());
-        assert_eq!(36, annot.colortable.r.len());
-        assert_eq!(36, annot.colortable.g.len());
-        assert_eq!(36, annot.colortable.b.len());
-        assert_eq!(36, annot.colortable.a.len());
-        assert_eq!(36, annot.colortable.label.len());
+        assert_eq!(36, annot.colortable.regions.len());
 
-        assert_eq!(0, annot.colortable.id[0]);
-        assert_eq!("unknown", annot.colortable.name[0]);
-        assert_eq!(25, annot.colortable.r[0]);
-        assert_eq!(5, annot.colortable.g[0]);
-        assert_eq!(25, annot.colortable.b[0]);
-        assert_eq!(0, annot.colortable.a[0]);
-        assert_eq!(1639705, annot.colortable.label[0]);
+        let first_region = &annot.colortable.regions[0];
+        assert_eq!(0, first_region.id);
+        assert_eq!("unknown", first_region.name);
+        assert_eq!(25, first_region.r);
+        assert_eq!(5, first_region.g);
+        assert_eq!(25, first_region.b);
+        assert_eq!(0, first_region.a);
+        assert_eq!(1639705, first_region.label);
     }
 
     #[test]
