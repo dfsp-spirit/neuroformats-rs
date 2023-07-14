@@ -194,7 +194,7 @@ impl FsAnnot {
     /// annot.vertex_regions();
     /// ```
     pub fn vertex_regions(&self) -> Vec<String> {
-        let mut vert_regions: Vec<String> = Vec::with_capacity(self.vertex_labels.len());
+        let mut vert_regions: Vec<String> = vec![String::new(); self.vertex_labels.len()];
         for region in self.colortable.regions.iter() {
             let region_label = region.label;
             let region_name = &region.name;
