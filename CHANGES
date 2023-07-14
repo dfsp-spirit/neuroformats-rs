@@ -1,6 +1,11 @@
 neuroformats Changes
 =====================
 
+Current WIP
+-----------
+- Change: improve file reading performance by using buffered readers, thanks to @rbran
+
+
 Version 0.2.3
 -------------
 - Add write support for MGH and MGZ files: `write_mgh`.
