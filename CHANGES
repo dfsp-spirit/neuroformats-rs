@@ -3,7 +3,13 @@ neuroformats Changes
 
 Current WIP
 -----------
+
+
+Version 0.2.4
+-------------
 - Change: improve file reading performance by using buffered readers, thanks to @rbran
+- Fix #4, In vec32minmax use iterators to avoid clone/sort a vector, thanks to @rbran
+- Fix #3, Access to uninitialized memory, thanks to @rbran
 
 
 Version 0.2.3
