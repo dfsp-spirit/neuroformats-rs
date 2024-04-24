@@ -64,17 +64,9 @@ There is a small command line demo application that loads a brain surface mesh a
 See the [neuroformats API docs](https://docs.rs/neuroformats) and the [unit tests in the source code](./src/) for more examples.
 
 
-## Development
+## Development Info
 
-### Unit tests and continuous integration
-
-Run `cargo test` in the repository root to run the tests locally.
-
-Continuous integration results:
-
-main branch: ![main](https://github.com/dfsp-spirit/neuroformats-rs/actions/workflows/tests.yml/badge.svg?branch=main)
-
-develop branch: ![main](https://github.com/dfsp-spirit/neuroformats-rs/actions/workflows/tests.yml/badge.svg?branch=develop)
+Please see the [README_DEV file](./README_DEV.md).
 
 
 ### LICENSE
