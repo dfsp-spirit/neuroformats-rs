@@ -705,10 +705,10 @@ mod test {
         let dir = tempdir().unwrap();
 
         // get path of current directory as &path::Path
-        let current_dir = std::env::current_dir().unwrap();
+        //let current_dir = std::env::current_dir().unwrap();
 
-        //let tfile_path = dir.path().join("temp-file.ply");
-        let tfile_path = current_dir.join("temp-file.ply");
+        let tfile_path = dir.path().join("temp-file.ply");
+        //let tfile_path = current_dir.join("temp-file.ply");
 
         let tfile_path = tfile_path.to_str().unwrap();
 
