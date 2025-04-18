@@ -380,8 +380,8 @@ impl BrainMesh {
         );
 
         // Combine buffers
-        let mut binary_data = vertex_buffer;
-        binary_data.extend(index_buffer);
+        let mut binary_data = index_buffer;
+        binary_data.extend(vertex_buffer);
 
         // Base64 encode
         let buffer_uri = format!(
