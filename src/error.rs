@@ -1,6 +1,5 @@
 //! Errors one may encounter when using neuroformats.
 
-
 use quick_error::quick_error;
 use std::io::Error as IOError;
 
@@ -11,6 +10,10 @@ quick_error! {
         /// Invalid curv file: wrong magic number.
         InvalidCurvFormat {
             display("Invalid Curv file")
+        }
+
+        VertexColorCountMismatch {
+            display("Invalid number of vertex colors for the mesh")
         }
 
         InvalidFsSurfaceFormat {

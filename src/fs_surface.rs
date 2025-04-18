@@ -459,8 +459,14 @@ impl FsSurface {
     pub fn colors_from_curv_file<P: AsRef<Path> + Copy>(&self, path: P) -> Result<Vec<u8>> {
         let curv = read_curv(path)?;
         let (min, max) = vec32minmax(curv.data.clone().into_iter(), true);
-        let colors = values_to_colors(&curv.data.clone(), min, max);
-        Ok(colors)
+        let colors: Vec<u8> = values_to_colors(&curv.data.clone(), min, max);
+
+        // verify that the number of colors * 3 matches the number of vertices (R,G,B for each vertex)
+        if (colors.len() / 3) != self.mesh.num_vertices() {
+            Err(NeuroformatsError::VertexColorCountMismatch)
+        } else {
+            Ok(colors)
+        }
     }
 
     /// Read a brain mesh, i.e., the data part of an FsSurface instance, from a reader.
@@ -698,7 +704,12 @@ mod test {
 
         let dir = tempdir().unwrap();
 
-        let tfile_path = dir.path().join("temp-file.surface");
+        // get path of current directory as &path::Path
+        let current_dir = std::env::current_dir().unwrap();
+
+        //let tfile_path = dir.path().join("temp-file.surface");
+        let tfile_path = current_dir.join("temp-file.ply");
+
         let tfile_path = tfile_path.to_str().unwrap();
 
         let ply_repr = surf.mesh.to_ply(Some(&colors));
