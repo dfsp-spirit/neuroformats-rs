@@ -12,7 +12,10 @@ use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
 
 use crate::error::{NeuroformatsError, Result};
+use crate::read_curv;
 use crate::util::read_fs_variable_length_string;
+use crate::util::values_to_colors;
+use crate::util::vec32minmax;
 
 use ndarray::{array, s, Array2};
 use ndarray_stats::QuantileExt;
@@ -453,6 +456,13 @@ impl FsSurface {
         Ok(surf)
     }
 
+    pub fn colors_from_curv_file<P: AsRef<Path> + Copy>(&self, path: P) -> Result<Vec<u8>> {
+        let curv = read_curv(path)?;
+        let (min, max) = vec32minmax(curv.data.clone().into_iter(), true);
+        let colors = values_to_colors(&curv.data.clone(), min, max);
+        Ok(colors)
+    }
+
     /// Read a brain mesh, i.e., the data part of an FsSurface instance, from a reader.
     pub fn mesh_from_reader<S>(input: &mut S, hdr: &FsSurfaceHeader) -> BrainMesh
     where
@@ -675,5 +685,26 @@ mod test {
 
         assert_eq!(149244, surf_re.mesh.num_vertices());
         assert_eq!(298484, surf_re.mesh.num_faces());
+    }
+
+    #[test]
+    fn a_surface_file_can_be_exported_with_vertex_colors_in_ply_format() {
+        const SURF_FILE: &str = "resources/subjects_dir/subject1/surf/lh.white";
+        let surf = read_surf(SURF_FILE).unwrap();
+
+        let colors: Vec<u8> = surf
+            .colors_from_curv_file("resources/subjects_dir/subject1/surf/lh.thickness")
+            .unwrap();
+
+        let dir = tempdir().unwrap();
+
+        let tfile_path = dir.path().join("temp-file.surface");
+        let tfile_path = tfile_path.to_str().unwrap();
+
+        let ply_repr = surf.mesh.to_ply(Some(&colors));
+        std::fs::write(tfile_path, ply_repr).expect("Unable to write vertex-colored PLY mesh file");
+
+        let ply_repr = std::fs::read_to_string(tfile_path).unwrap();
+        assert!(ply_repr.contains("ply"));
     }
 }

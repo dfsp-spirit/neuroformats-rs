@@ -137,6 +137,23 @@ where
 /// # Return value
 ///
 /// A tuple of length 2, the first value is the minimum, the second the maximum.
+///
+/// Example:
+/// ```
+/// use neuroformats::util::vec32minmax;
+/// let v: Vec<f32> = vec![0.4, 0.5, 0.9, 0.01];
+/// let (min, max) = vec32minmax(v.into_iter(), true);
+/// assert_eq!(min, 0.01);
+/// assert_eq!(max, 0.9);
+/// ```
+/// # Arguments
+/// * `data` - An iterator over `f32` values.
+/// * `remove_nan` - If set to true, NaN values will be filtered out. If set to false, the function will panic if NaN values are found.
+/// # Note
+/// The function will panic if the input iterator is empty or contains NaN values and `remove_nan` is set to false.
+/// The function will also panic if the input iterator is empty.
+/// The function will filter out NaN values if `remove_nan` is set to true.
+/// The function will return a tuple containing the minimum and maximum values found in the input iterator.
 pub fn vec32minmax<I>(data: I, remove_nan: bool) -> (f32, f32)
 where
     I: Iterator<Item = f32>,
