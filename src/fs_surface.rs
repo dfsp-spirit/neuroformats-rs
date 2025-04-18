@@ -1,22 +1,20 @@
 //! Functions for managing FreeSurfer brain surface meshes in binary 'surf' files.
 //!
-//! Surf files store a triangular mesh, where each vertex is defined by its x,y,z coords and 
+//! Surf files store a triangular mesh, where each vertex is defined by its x,y,z coords and
 //! each face is defined by 3 vertices, stored as 3 row-indices into the vertices matrix.
 //! These vertex indices are zero-based.
 
-
 use byteordered::{ByteOrdered, Endianness};
 
-use std::{fs::File};
-use std::io::{BufReader, BufRead, BufWriter, Write};
-use std::path::{Path};
 use std::fmt;
+use std::fs::File;
+use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::path::Path;
 
-use crate::util::{read_fs_variable_length_string};
 use crate::error::{NeuroformatsError, Result};
+use crate::util::read_fs_variable_length_string;
 
-
-use ndarray::{Array2, array, s};
+use ndarray::{array, s, Array2};
 use ndarray_stats::QuantileExt;
 
 pub const TRIS_MAGIC_FILE_TYPE_NUMBER: i32 = 16777214;
@@ -30,27 +28,24 @@ pub struct FsSurfaceHeader {
     pub num_faces: i32,
 }
 
-
 impl Default for FsSurfaceHeader {
     fn default() -> FsSurfaceHeader {
         FsSurfaceHeader {
             surf_magic: [255, 255, 254],
             info_line: String::from("A brain surface.\n\n"),
             num_vertices: 0,
-            num_faces: 0
+            num_faces: 0,
         }
     }
 }
 
 /// The header of a FreeSurfer brain mesh file in surf format.
 impl FsSurfaceHeader {
-    
     /// Read an FsSurface header from a file.
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<FsSurfaceHeader> {
         let mut file = BufReader::new(File::open(path)?);
         FsSurfaceHeader::from_reader(&mut file)
     }
-
 
     /// Read an FsSurface header from the given byte stream.
     /// It is assumed that the input is currently at the start of the
@@ -60,7 +55,7 @@ impl FsSurfaceHeader {
         S: BufRead,
     {
         let mut hdr = FsSurfaceHeader::default();
-    
+
         let mut input = ByteOrdered::be(input);
 
         hdr.surf_magic[0] = input.read_u8()?;
@@ -69,8 +64,9 @@ impl FsSurfaceHeader {
         hdr.info_line = read_fs_variable_length_string(&mut input)?;
         hdr.num_vertices = input.read_i32()?;
         hdr.num_faces = input.read_i32()?;
-        
-        let magic: i32 = interpret_fs_int24(hdr.surf_magic[0], hdr.surf_magic[1], hdr.surf_magic[2]);
+
+        let magic: i32 =
+            interpret_fs_int24(hdr.surf_magic[0], hdr.surf_magic[1], hdr.surf_magic[2]);
 
         if !(magic == TRIS_MAGIC_FILE_TYPE_NUMBER) {
             Err(NeuroformatsError::InvalidFsSurfaceFormat)
@@ -79,7 +75,6 @@ impl FsSurfaceHeader {
         }
     }
 }
-
 
 /// Compute the min and max coordinates for the x, y, and z axes.
 ///
@@ -103,24 +98,24 @@ impl FsSurfaceHeader {
 /// assert_eq!(2.0, maxy);
 /// assert_eq!(4.0, maxz);
 /// ```
-pub fn coord_extrema(coords : &Vec<f32>) -> Result<(f32, f32, f32, f32, f32, f32)> {
-    let all_coords = Array2::from_shape_vec((coords.len()/3 as usize, 3 as usize), coords.clone()).unwrap();
-    let x_coords =  all_coords.slice(s![.., 0]);
-    let y_coords =  all_coords.slice(s![.., 1]);
-    let z_coords =  all_coords.slice(s![.., 2]);
+pub fn coord_extrema(coords: &Vec<f32>) -> Result<(f32, f32, f32, f32, f32, f32)> {
+    let all_coords =
+        Array2::from_shape_vec((coords.len() / 3 as usize, 3 as usize), coords.clone()).unwrap();
+    let x_coords = all_coords.slice(s![.., 0]);
+    let y_coords = all_coords.slice(s![.., 1]);
+    let z_coords = all_coords.slice(s![.., 2]);
 
     let min_x = x_coords.min().unwrap().clone(); // min() on type ndarray::ArrayBase is available from ndarray-stats Quantile trait
-    let max_x = x_coords.max().unwrap().clone(); 
+    let max_x = x_coords.max().unwrap().clone();
 
     let min_y = y_coords.min().unwrap().clone();
-    let max_y = y_coords.max().unwrap().clone(); 
+    let max_y = y_coords.max().unwrap().clone();
 
     let min_z = z_coords.min().unwrap().clone();
-    let max_z = z_coords.max().unwrap().clone(); 
-    
+    let max_z = z_coords.max().unwrap().clone();
+
     Ok((min_x, max_x, min_y, max_y, min_z, max_z))
 }
-
 
 /// Compute the center of the given coordinates.
 ///
@@ -143,17 +138,22 @@ pub fn coord_extrema(coords : &Vec<f32>) -> Result<(f32, f32, f32, f32, f32, f32
 /// assert_eq!(1.0, cy);
 /// assert_eq!(2.0, cz);
 /// ```
-pub fn coord_center(coords : &Vec<f32>)  -> Result<(f32, f32, f32)> {
+pub fn coord_center(coords: &Vec<f32>) -> Result<(f32, f32, f32)> {
     let (min_x, max_x, min_y, max_y, min_z, max_z) = coord_extrema(coords)?;
-    let cx = array![min_x, max_x].mean().expect("Could not compute mean for x coords.");
-    let cy = array![min_y, max_y].mean().expect("Could not compute mean for y coords.");
-    let cz = array![min_z, max_z].mean().expect("Could not compute mean for z coords.");
+    let cx = array![min_x, max_x]
+        .mean()
+        .expect("Could not compute mean for x coords.");
+    let cy = array![min_y, max_y]
+        .mean()
+        .expect("Could not compute mean for y coords.");
+    let cz = array![min_z, max_z]
+        .mean()
+        .expect("Could not compute mean for z coords.");
     Ok((cx, cy, cz))
 }
 
-
 /// Interpret three bytes as a single 24 bit integer, FreeSurfer style.
-pub fn interpret_fs_int24(b1: u8, b2:u8, b3:u8) -> i32 {
+pub fn interpret_fs_int24(b1: u8, b2: u8, b3: u8) -> i32 {
     let c1 = (b1 as u32).checked_shl(16).unwrap_or(0);
     let c2 = (b2 as u32).checked_shl(8).unwrap_or(0);
     let c3 = b3 as i32;
@@ -162,12 +162,11 @@ pub fn interpret_fs_int24(b1: u8, b2:u8, b3:u8) -> i32 {
     fs_int24
 }
 
-
 /// Write an FsSurface struct to a file in FreeSurfer surf format.
-pub fn write_surf<P: AsRef<Path> + Copy>(path: P, surf : &FsSurface) -> std::io::Result<()> {
+pub fn write_surf<P: AsRef<Path> + Copy>(path: P, surf: &FsSurface) -> std::io::Result<()> {
     let f = File::create(path)?;
-    let f = BufWriter::new(f);  
-    let mut f  =  ByteOrdered::runtime(f, Endianness::Big); 
+    let f = BufWriter::new(f);
+    let mut f = ByteOrdered::runtime(f, Endianness::Big);
     f.write_u8(surf.header.surf_magic[0])?;
     f.write_u8(surf.header.surf_magic[1])?;
     f.write_u8(surf.header.surf_magic[2])?;
@@ -177,27 +176,29 @@ pub fn write_surf<P: AsRef<Path> + Copy>(path: P, surf : &FsSurface) -> std::io:
     f.write_i32(surf.header.num_vertices)?;
     f.write_i32(surf.header.num_faces)?;
 
-    for v in surf.mesh.vertices.iter() { f.write_f32(*v)?; }
-    for v in surf.mesh.faces.iter() { f.write_i32(*v)?; }
-    
+    for v in surf.mesh.vertices.iter() {
+        f.write_f32(*v)?;
+    }
+    for v in surf.mesh.faces.iter() {
+        f.write_i32(*v)?;
+    }
+
     Ok(())
 }
-
 
 /// An FsSurface object, models the contents (header and data) of a FreeSurfer surf file.
 #[derive(Debug, PartialEq, Clone)]
 pub struct FsSurface {
     pub header: FsSurfaceHeader,
-    pub mesh: BrainMesh, 
+    pub mesh: BrainMesh,
 }
 
 /// A brain mesh, or any other triangular mesh. Vertices are stored as a vector of x,y,z coordinates, where triplets of coordinates represent a vertex. The triangular faces are stored in the same way as a vector of vertex indices.
 #[derive(Debug, PartialEq, Clone)]
 pub struct BrainMesh {
     pub vertices: Vec<f32>,
-    pub faces: Vec<i32>, 
+    pub faces: Vec<i32>,
 }
-
 
 impl BrainMesh {
     /// Export a brain mesh to a Wavefront Object (OBJ) format string.
@@ -212,33 +213,119 @@ impl BrainMesh {
     pub fn to_obj(&self) -> String {
         let mut obj_repr = Vec::<String>::new();
 
-        let vertices = Array2::from_shape_vec((self.vertices.len()/3 as usize, 3 as usize), self.vertices.clone()).unwrap();
-        let faces = Array2::from_shape_vec((self.faces.len()/3 as usize, 3 as usize), self.faces.clone()).unwrap();
+        let vertices = Array2::from_shape_vec(
+            (self.vertices.len() / 3 as usize, 3 as usize),
+            self.vertices.clone(),
+        )
+        .unwrap();
+        let faces = Array2::from_shape_vec(
+            (self.faces.len() / 3 as usize, 3 as usize),
+            self.faces.clone(),
+        )
+        .unwrap();
 
         for vrow in vertices.genrows() {
             obj_repr.push(format!("v {} {} {}\n", vrow[0], vrow[1], vrow[2]));
         }
 
         for frow in faces.genrows() {
-            obj_repr.push(format!("f {} {} {}\n", frow[0]+1, frow[1]+1, frow[2]+1));
+            obj_repr.push(format!(
+                "f {} {} {}\n",
+                frow[0] + 1,
+                frow[1] + 1,
+                frow[2] + 1
+            ));
         }
-        
+
         let obj_repr = obj_repr.join("");
         obj_repr
     }
 
+    /// Export a brain mesh to PLY (Polygon File Format) format string.
+    ///
+    /// # Arguments
+    /// * `vertex_colors` - Optional vertex colors as RGB values in [r,g,b, r,g,b, ...] format.
+    ///                    Must be exactly 3 times the number of vertices if provided.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// let surf = neuroformats::read_surf("/path/to/subject/surf/lh.white").unwrap();
+    /// let colors = vec![255; surf.mesh.vertices.len()]; // White colors for all vertices
+    /// let ply_repr = surf.mesh.to_ply(Some(&colors));
+    /// std::fs::write("/tmp/lhwhite.ply", ply_repr).expect("Unable to write PLY mesh file");
+    /// ```
+    pub fn to_ply(&self, vertex_colors: Option<&[u8]>) -> String {
+        let vertex_count: usize = self.vertices.len() / 3;
+        let face_count: usize = self.faces.len() / 3;
+
+        // Validate vertex colors if provided
+        if let Some(colors) = vertex_colors {
+            assert_eq!(
+                colors.len(),
+                vertex_count * 3,
+                "Vertex colors array must have exactly 3 values per vertex"
+            );
+        }
+
+        let mut ply_lines: Vec<String> = Vec::new();
+
+        // Header
+        ply_lines.push("ply".to_string());
+        ply_lines.push("format ascii 1.0".to_string());
+        ply_lines.push(format!("element vertex {}", vertex_count));
+        ply_lines.push("property float x".to_string());
+        ply_lines.push("property float y".to_string());
+        ply_lines.push("property float z".to_string());
+
+        if vertex_colors.is_some() {
+            ply_lines.push("property uchar red".to_string());
+            ply_lines.push("property uchar green".to_string());
+            ply_lines.push("property uchar blue".to_string());
+        }
+
+        ply_lines.push(format!("element face {}", face_count));
+        ply_lines.push("property list uchar int vertex_indices".to_string());
+        ply_lines.push("end_header".to_string());
+
+        // Vertex data
+        for i in 0..vertex_count {
+            let x: f32 = self.vertices[i * 3];
+            let y: f32 = self.vertices[i * 3 + 1];
+            let z: f32 = self.vertices[i * 3 + 2];
+
+            let mut vertex_line: String = format!("{} {} {}", x, y, z);
+
+            if let Some(colors) = vertex_colors {
+                let r = colors[i * 3];
+                let g = colors[i * 3 + 1];
+                let b = colors[i * 3 + 2];
+                vertex_line.push_str(&format!(" {} {} {}", r, g, b));
+            }
+
+            ply_lines.push(vertex_line);
+        }
+
+        // Face data
+        for i in 0..face_count {
+            let a = self.faces[i * 3];
+            let b = self.faces[i * 3 + 1];
+            let c = self.faces[i * 3 + 2];
+            ply_lines.push(format!("3 {} {} {}", a, b, c));
+        }
+
+        ply_lines.join("\n") + "\n"
+    }
 
     /// Get the number of vertices for this mesh.
     pub fn num_vertices(&self) -> usize {
-        self.vertices.len()/3
+        self.vertices.len() / 3
     }
-
 
     /// Get the number of faces (or polygons) for this mesh.
     pub fn num_faces(&self) -> usize {
-        self.faces.len()/3
+        self.faces.len() / 3
     }
-
 
     /// Read a brain mesh from a Wavefront object format (.obj) mesh file.
     ///
@@ -248,22 +335,19 @@ impl BrainMesh {
     /// assert_eq!(24, mesh.vertices.len());
     /// ```
     pub fn from_obj_file<P: AsRef<Path>>(path: P) -> Result<BrainMesh> {
-    
-        let reader = BufReader::new(File::open(path)?);
+        let reader: BufReader<File> = BufReader::new(File::open(path)?);
 
-        let mut vertex_data : Vec<f32> = Vec::new();
-        let mut face_data : Vec<i32> = Vec::new();
+        let mut vertex_data: Vec<f32> = Vec::new();
+        let mut face_data: Vec<i32> = Vec::new();
 
         let mut num_vertices: i32 = 0;
         let mut num_faces: i32 = 0;
 
         // Read the file line by line using the lines() iterator from std::io::BufRead.
         for (_index, line) in reader.lines().enumerate() {
-
             let line = line?;
             let mut iter = line.split_whitespace();
-    
-            
+
             let entry_type = iter.next().unwrap().trim();
             if entry_type == "v" {
                 num_vertices += 1;
@@ -279,22 +363,19 @@ impl BrainMesh {
                 continue; // Ignore comment lines.
             } else {
                 return Err(NeuroformatsError::InvalidWavefrontObjectFormat);
-            }                
+            }
         }
 
         if num_vertices < 1 || num_faces < 1 {
             return Err(NeuroformatsError::EmptyWavefrontObjectFile);
         }
 
-
         let mesh = BrainMesh {
-            vertices : vertex_data,
-            faces : face_data
+            vertices: vertex_data,
+            faces: face_data,
         };
         Ok(mesh)
     }
-
-
 
     /// Compute the min and max coordinates for the x, y, and z axes of the mesh.
     ///
@@ -309,7 +390,6 @@ impl BrainMesh {
         coord_extrema(&self.vertices)
     }
 
-
     /// Compute the center of the mesh.
     ///
     /// The center is simply the mean of the min and max values for the x, y and z axes. So this is NOT the center of mass.
@@ -321,23 +401,25 @@ impl BrainMesh {
     /// # Return value
     ///
     /// The 3 values in the returned tuple are the x, y and z coordinates of the center, in that order.
-    pub fn center(&self)  -> Result<(f32, f32, f32)> {
+    pub fn center(&self) -> Result<(f32, f32, f32)> {
         coord_center(&self.vertices)
     }
-
 }
 
-impl fmt::Display for BrainMesh {    
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {        
-        write!(f, "Brain trimesh with {} vertices and {} faces.", self.vertices.len()/3, self.faces.len()/3)
+impl fmt::Display for BrainMesh {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Brain trimesh with {} vertices and {} faces.",
+            self.vertices.len() / 3,
+            self.faces.len() / 3
+        )
     }
 }
-
-
 
 /// Read an FsSurface instance from a file.
 ///
-/// Surf files store a triangular mesh, where each vertex is defined by its x,y,z coords and 
+/// Surf files store a triangular mesh, where each vertex is defined by its x,y,z coords and
 /// each face is defined by 3 vertices, stored as 3 row-indices into the vertices matrix.
 /// These vertex indices are zero-based. The mesh typically represents a single brain hemisphere.
 ///
@@ -354,44 +436,39 @@ pub fn read_surf<P: AsRef<Path> + Copy>(path: P) -> Result<FsSurface> {
     FsSurface::from_file(path)
 }
 
-
 impl FsSurface {
     /// Read an FsSurface instance from a file.
     pub fn from_file<P: AsRef<Path> + Copy>(path: P) -> Result<FsSurface> {
-
         let mut file = BufReader::new(File::open(path)?);
 
         let hdr = FsSurfaceHeader::from_reader(&mut file).unwrap();
 
-
         let mesh: BrainMesh = FsSurface::mesh_from_reader(&mut file, &hdr);
 
-        let surf = FsSurface { 
-            header : hdr,
+        let surf = FsSurface {
+            header: hdr,
             mesh: mesh,
         };
 
         Ok(surf)
     }
 
-
     /// Read a brain mesh, i.e., the data part of an FsSurface instance, from a reader.
     pub fn mesh_from_reader<S>(input: &mut S, hdr: &FsSurfaceHeader) -> BrainMesh
     where
         S: BufRead,
     {
-    
         let mut input = ByteOrdered::be(input);
 
         let num_vert_coords: i32 = hdr.num_vertices * 3;
-        let mut vertex_data : Vec<f32> = Vec::with_capacity(num_vert_coords as usize);
+        let mut vertex_data: Vec<f32> = Vec::with_capacity(num_vert_coords as usize);
         for _ in 1..=hdr.num_vertices * 3 {
             vertex_data.push(input.read_f32().unwrap());
         }
 
         //let vertices = Array::from_shape_vec((hdr.num_vertices as usize, 3 as usize), vertex_data).unwrap();
 
-        let mut face_data : Vec<i32> = Vec::with_capacity((hdr.num_faces * 3) as usize);
+        let mut face_data: Vec<i32> = Vec::with_capacity((hdr.num_faces * 3) as usize);
         for _ in 1..=hdr.num_faces * 3 {
             face_data.push(input.read_i32().unwrap());
         }
@@ -399,26 +476,30 @@ impl FsSurface {
         //let faces = Array::from_shape_vec((hdr.num_faces as usize, 3 as usize), face_data).unwrap();
 
         let mesh = BrainMesh {
-            vertices : vertex_data,
-            faces : face_data
+            vertices: vertex_data,
+            faces: face_data,
         };
 
         mesh
     }
 }
 
-impl fmt::Display for FsSurface {    
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {        
-        write!(f, "FreeSurfer Brain trimesh with {} vertices and {} faces.", self.mesh.vertices.len()/3, self.mesh.faces.len()/3)
+impl fmt::Display for FsSurface {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "FreeSurfer Brain trimesh with {} vertices and {} faces.",
+            self.mesh.vertices.len() / 3,
+            self.mesh.faces.len() / 3
+        )
     }
 }
 
-
 #[cfg(test)]
-mod test { 
+mod test {
     use super::*;
-    use tempfile::{tempdir};
     use approx::assert_abs_diff_eq;
+    use tempfile::tempdir;
 
     #[test]
     fn the_demo_surf_file_can_be_read() {
@@ -431,7 +512,7 @@ mod test {
 
         assert_eq!(149244, surf.header.num_vertices);
         assert_eq!(298484, surf.header.num_faces);
-    
+
         assert_eq!(149244 * 3, surf.mesh.vertices.len());
         assert_eq!(298484 * 3, surf.mesh.faces.len());
     }
@@ -441,16 +522,42 @@ mod test {
         const SURF_FILE: &str = "resources/subjects_dir/subject1/surf/lh.white";
         let surf = read_surf(SURF_FILE).unwrap();
 
-        let expected_min_max : (f32, f32, f32, f32, f32, f32) = (-60.6363, 5.589893, -108.62039, 58.73302, -8.280799, 106.17429);
-        
-        assert_abs_diff_eq!(expected_min_max.0, surf.mesh.axes_min_max_coords().unwrap().0, epsilon = 1e-8);
-        assert_abs_diff_eq!(expected_min_max.1, surf.mesh.axes_min_max_coords().unwrap().1, epsilon = 1e-8);
-        assert_abs_diff_eq!(expected_min_max.2, surf.mesh.axes_min_max_coords().unwrap().2, epsilon = 1e-8);
-        assert_abs_diff_eq!(expected_min_max.3, surf.mesh.axes_min_max_coords().unwrap().3, epsilon = 1e-8);
-        assert_abs_diff_eq!(expected_min_max.4, surf.mesh.axes_min_max_coords().unwrap().4, epsilon = 1e-8);
-        assert_abs_diff_eq!(expected_min_max.5, surf.mesh.axes_min_max_coords().unwrap().5, epsilon = 1e-8);
+        let expected_min_max: (f32, f32, f32, f32, f32, f32) = (
+            -60.6363, 5.589893, -108.62039, 58.73302, -8.280799, 106.17429,
+        );
 
-        let expected_center : (f32, f32, f32) = (-27.523203, -24.943686, 48.946747);
+        assert_abs_diff_eq!(
+            expected_min_max.0,
+            surf.mesh.axes_min_max_coords().unwrap().0,
+            epsilon = 1e-8
+        );
+        assert_abs_diff_eq!(
+            expected_min_max.1,
+            surf.mesh.axes_min_max_coords().unwrap().1,
+            epsilon = 1e-8
+        );
+        assert_abs_diff_eq!(
+            expected_min_max.2,
+            surf.mesh.axes_min_max_coords().unwrap().2,
+            epsilon = 1e-8
+        );
+        assert_abs_diff_eq!(
+            expected_min_max.3,
+            surf.mesh.axes_min_max_coords().unwrap().3,
+            epsilon = 1e-8
+        );
+        assert_abs_diff_eq!(
+            expected_min_max.4,
+            surf.mesh.axes_min_max_coords().unwrap().4,
+            epsilon = 1e-8
+        );
+        assert_abs_diff_eq!(
+            expected_min_max.5,
+            surf.mesh.axes_min_max_coords().unwrap().5,
+            epsilon = 1e-8
+        );
+
+        let expected_center: (f32, f32, f32) = (-27.523203, -24.943686, 48.946747);
         let (cx, cy, cz) = surf.mesh.center().unwrap();
         assert_abs_diff_eq!(expected_center.0, cx, epsilon = 1e-8);
         assert_abs_diff_eq!(expected_center.1, cy, epsilon = 1e-8);
@@ -464,12 +571,50 @@ mod test {
 
         assert_eq!(5, surf.header.num_vertices);
         assert_eq!(3, surf.header.num_faces);
-    
+
         assert_eq!(5 * 3, surf.mesh.vertices.len());
         assert_eq!(3 * 3, surf.mesh.faces.len());
 
         let obj_repr: String = surf.mesh.to_obj();
         assert_eq!(String::from("v 0.3 0.3 0.3\nv 0.3 0.3 0.3\nv 0.3 0.3 0.3\nv 0.3 0.3 0.3\nv 0.3 0.3 0.3\nf 1 2 4\nf 2 4 5\nf 3 3 3\n"), obj_repr);
+    }
+
+    #[test]
+    fn the_tiny_demo_surf_file_can_be_exported_to_ply_format_without_colors() {
+        const SURF_FILE: &str = "resources/subjects_dir/subject1/surf/lh.tinysurface";
+        let surf = read_surf(SURF_FILE).unwrap();
+
+        assert_eq!(5, surf.header.num_vertices);
+        assert_eq!(3, surf.header.num_faces);
+
+        assert_eq!(5 * 3, surf.mesh.vertices.len());
+        assert_eq!(3 * 3, surf.mesh.faces.len());
+
+        let ply_repr: String = surf.mesh.to_ply(None);
+        assert_eq!(String::from("ply\nformat ascii 1.0\nelement vertex 5\nproperty float x\nproperty float y\nproperty float z\nelement face 3\nproperty list uchar int vertex_indices\nend_header\n0.3 0.3 0.3\n0.3 0.3 0.3\n0.3 0.3 0.3\n0.3 0.3 0.3\n0.3 0.3 0.3\n3 0 1 3\n3 1 3 4\n3 2 2 2\n"), ply_repr);
+    }
+
+    #[test]
+    fn the_tiny_demo_surf_file_can_be_exported_to_ply_format_with_colors() {
+        const SURF_FILE: &str = "resources/subjects_dir/subject1/surf/lh.tinysurface";
+        let surf = read_surf(SURF_FILE).unwrap();
+
+        assert_eq!(5, surf.header.num_vertices);
+        assert_eq!(3, surf.header.num_faces);
+
+        assert_eq!(5 * 3, surf.mesh.vertices.len());
+        assert_eq!(3 * 3, surf.mesh.faces.len());
+
+        let colors = vec![
+            255, 0, 0, // Red for vertex 0
+            0, 255, 0, // Green for vertex 1
+            0, 0, 255, // Blue for vertex 2
+            255, 255, 0, // Yellow for vertex 3
+            255, 0, 255, // Magenta for vertex 4
+        ];
+
+        let ply_repr: String = surf.mesh.to_ply(Some(&colors));
+        assert_eq!(String::from("ply\nformat ascii 1.0\nelement vertex 5\nproperty float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\nelement face 3\nproperty list uchar int vertex_indices\nend_header\n0.3 0.3 0.3 255 0 0\n0.3 0.3 0.3 0 255 0\n0.3 0.3 0.3 0 0 255\n0.3 0.3 0.3 255 255 0\n0.3 0.3 0.3 255 0 255\n3 0 1 3\n3 1 3 4\n3 2 2 2\n"), ply_repr);
     }
 
     #[test]
@@ -486,18 +631,24 @@ mod test {
 
     #[test]
     fn the_coord_center_can_be_computed() {
-        let coords: Vec<f32> = vec![0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 0.5, 0.5, 0.5, 0.9, 0.9, 0.9, 0.95, 0.95, 0.95, 1.0, 2.0, 4.0];
+        let coords: Vec<f32> = vec![
+            0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 0.5, 0.5, 0.5, 0.9, 0.9, 0.9, 0.95, 0.95, 0.95, 1.0, 2.0,
+            4.0,
+        ];
         let (cx, cy, cz) = crate::fs_surface::coord_center(&coords).unwrap();
         assert_eq!(0.5, cx);
         assert_eq!(1.0, cy);
         assert_eq!(2.0, cz);
     }
 
-
     #[test]
     fn the_coord_extrema_can_be_computed() {
-        let coords: Vec<f32> = vec![0.0, 0.1, 0.2, 0.3, 0.3, 0.3, 0.5, 0.5, 0.5, 0.9, 0.9, 0.9, 0.95, 0.95, 0.95, 1.0, 2.0, 4.0];
-        let (minx, maxx, miny, maxy, minz, maxz) = crate::fs_surface::coord_extrema(&coords).unwrap();
+        let coords: Vec<f32> = vec![
+            0.0, 0.1, 0.2, 0.3, 0.3, 0.3, 0.5, 0.5, 0.5, 0.9, 0.9, 0.9, 0.95, 0.95, 0.95, 1.0, 2.0,
+            4.0,
+        ];
+        let (minx, maxx, miny, maxy, minz, maxz) =
+            crate::fs_surface::coord_extrema(&coords).unwrap();
         assert_eq!(0.0, minx);
         assert_eq!(0.1, miny);
         assert_eq!(0.2, minz);
@@ -510,7 +661,7 @@ mod test {
     fn a_surface_file_can_be_written_and_reread() {
         const SURF_FILE: &str = "resources/subjects_dir/subject1/surf/lh.white";
         let surf = read_surf(SURF_FILE).unwrap();
-        
+
         let dir = tempdir().unwrap();
 
         let tfile_path = dir.path().join("temp-file.surface");
@@ -521,11 +672,8 @@ mod test {
 
         assert_eq!(149244, surf_re.header.num_vertices);
         assert_eq!(298484, surf_re.header.num_faces);
-    
+
         assert_eq!(149244, surf_re.mesh.num_vertices());
         assert_eq!(298484, surf_re.mesh.num_faces());
     }
-
 }
-
-
