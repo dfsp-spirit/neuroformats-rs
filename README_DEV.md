@@ -16,7 +16,7 @@ develop branch: ![main](https://github.com/dfsp-spirit/neuroformats-rs/actions/w
 
 * Update the [CHANGES file](./CHANGES)
 * Bump version information in [Cargo.toml](./Cargo.toml)
-* Run the unit tests
+* Run the unit tests: ```cargo test```
 * Once everything is ready, publish to crates.io via ```cargo```:
 
 ```shell
