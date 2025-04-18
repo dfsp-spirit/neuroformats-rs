@@ -16,14 +16,14 @@ use colorgrad::Gradient;
 /// The resulting colors are returned as a vector of u8 values, where each color is represented by three consecutive u8 values (R, G, B).
 /// # Arguments
 /// * `values` - A slice of f32 values to be converted to colors.
-/// * `min_val` - The minimum value for normalization.
-/// * `max_val` - The maximum value for normalization.
+/// * `min_val` - The minimum value for normalization. If the values argument contains values less than this, they will be clamped to this value.
+/// * `max_val` - The maximum value for normalization. If the values argument contains values greater than this, they will be clamped to this value.
 /// # Returns
 /// * A vector of u8 values representing the RGB colors.
 /// # Example
 /// ```
 /// use neuroformats::util::values_to_colors;
-/// let values = vec![0.0, 0.5, 1.0];
+/// let values = vec![0.0, 0.5, 1.1];
 /// let min_val = 0.0;
 /// let max_val = 1.0;
 /// let colors = values_to_colors(&values, min_val, max_val);
