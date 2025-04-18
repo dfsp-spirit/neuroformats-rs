@@ -227,11 +227,11 @@ impl BrainMesh {
         )
         .unwrap();
 
-        for vrow in vertices.genrows() {
+        for vrow in vertices.rows() {
             obj_repr.push(format!("v {} {} {}\n", vrow[0], vrow[1], vrow[2]));
         }
 
-        for frow in faces.genrows() {
+        for frow in faces.rows() {
             obj_repr.push(format!(
                 "f {} {} {}\n",
                 frow[0] + 1,
