@@ -440,7 +440,7 @@ pub fn read_surf<P: AsRef<Path> + Copy>(path: P) -> Result<FsSurface> {
 }
 
 impl FsSurface {
-    /// Read an FsSurface instance from a file.
+    /// Read an FsSurface instance from a file in FreeSurfer surf format.
     pub fn from_file<P: AsRef<Path> + Copy>(path: P) -> Result<FsSurface> {
         let mut file = BufReader::new(File::open(path)?);
 
@@ -456,6 +456,12 @@ impl FsSurface {
         Ok(surf)
     }
 
+    /// Generate vertex colors for this mesh from the per-vertex values in a FreeSurfer curv file.
+    /// This is a convenience function that reads the curv file and generates a color vector for the mesh.
+    /// It also checks that the number of colors matches the number of vertices in the mesh.
+    /// Arguments:
+    /// * `path` - The path to the curv file.
+    /// Returns a vector of colors in [r,g,b, r,g,b, ...] format.
     pub fn colors_from_curv_file<P: AsRef<Path> + Copy>(&self, path: P) -> Result<Vec<u8>> {
         let curv = read_curv(path)?;
         let (min, max) = vec32minmax(curv.data.clone().into_iter(), true);
@@ -716,6 +722,6 @@ mod test {
         std::fs::write(tfile_path, ply_repr).expect("Unable to write vertex-colored PLY mesh file");
 
         let ply_repr = std::fs::read_to_string(tfile_path).unwrap();
-        assert!(ply_repr.contains("ply"));
+        assert!(ply_repr.contains("ply")); // Check the file with a mesh viewer like MeshLab. Under Ubuntu 24: ```sudo apt install meshlab```, then ```XDG_SESSION_TYPE="" meshlab temp-file.ply```
     }
 }
