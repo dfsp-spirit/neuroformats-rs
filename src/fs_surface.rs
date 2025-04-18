@@ -17,6 +17,8 @@ use crate::util::read_fs_variable_length_string;
 use crate::util::values_to_colors;
 use crate::util::vec32minmax;
 
+use serde_json::json;
+
 use ndarray::{array, s, Array2};
 use ndarray_stats::QuantileExt;
 
@@ -318,6 +320,111 @@ impl BrainMesh {
         }
 
         ply_lines.join("\n") + "\n"
+    }
+
+    pub fn to_gltf(&self) -> String {
+        // Create buffers
+        let vertex_buffer: Vec<u8> = self
+            .vertices
+            .iter()
+            .flat_map(|v| v.to_le_bytes().to_vec())
+            .collect();
+
+        // Convert faces to u32 and create index buffer
+        let indices: Vec<u32> = self.faces.iter().map(|&i| i as u32).collect();
+        let index_buffer: Vec<u8> = indices
+            .iter()
+            .flat_map(|i| i.to_le_bytes().to_vec())
+            .collect();
+
+        // Calculate buffer sizes and offsets
+        let vertex_buffer_length = vertex_buffer.len() as u32;
+        let index_buffer_length = index_buffer.len() as u32;
+        let total_buffer_length = vertex_buffer_length + index_buffer_length;
+
+        // Create the binary data (concatenated buffers)
+        let mut binary_data = vertex_buffer;
+        binary_data.extend(index_buffer);
+
+        // Base64 encode the binary data
+        let buffer_uri = format!(
+            "data:application/octet-stream;base64,{}",
+            base64::encode(&binary_data)
+        );
+
+        // Construct the glTF JSON structure
+        let gltf = json!({
+            "asset": {
+                "version": "2.0",
+                "generator": "BrainMesh glTF exporter"
+            },
+            "scenes": [{
+                "nodes": [0]
+            }],
+            "nodes": [{
+                "mesh": 0
+            }],
+            "meshes": [{
+                "primitives": [{
+                    "attributes": {
+                        "POSITION": 1
+                    },
+                    "indices": 0,
+                    "mode": 4 // TRIANGLES
+                }]
+            }],
+            "buffers": [{
+                "uri": buffer_uri,
+                "byteLength": total_buffer_length
+            }],
+            "bufferViews": [
+                {
+                    "buffer": 0,
+                    "byteOffset": 0,
+                    "byteLength": index_buffer_length,
+                    "target": 34963 // ELEMENT_ARRAY_BUFFER
+                },
+                {
+                    "buffer": 0,
+                    "byteOffset": index_buffer_length,
+                    "byteLength": vertex_buffer_length,
+                    "target": 34962 // ARRAY_BUFFER
+                }
+            ],
+            "accessors": [
+                {
+                    "bufferView": 0,
+                    "byteOffset": 0,
+                    "componentType": 5125, // UNSIGNED_INT
+                    "count": self.faces.len() as u32,
+                    "type": "SCALAR",
+                    "max": [*indices.iter().max().unwrap() as f64],
+                    "min": [*indices.iter().min().unwrap() as f64]
+                },
+                {
+                    "bufferView": 1,
+                    "byteOffset": 0,
+                    "componentType": 5126, // FLOAT
+                    "count": (self.vertices.len() / 3) as u32,
+                    "type": "VEC3",
+                    "max": self.vertices.chunks(3).fold([f32::MIN; 3], |mut max, v| {
+                        max[0] = max[0].max(v[0]);
+                        max[1] = max[1].max(v[1]);
+                        max[2] = max[2].max(v[2]);
+                        max
+                    }).iter().map(|&v| v as f64).collect::<Vec<_>>(),
+                    "min": self.vertices.chunks(3).fold([f32::MAX; 3], |mut min, v| {
+                        min[0] = min[0].min(v[0]);
+                        min[1] = min[1].min(v[1]);
+                        min[2] = min[2].min(v[2]);
+                        min
+                    }).iter().map(|&v| v as f64).collect::<Vec<_>>()
+                }
+            ]
+        });
+
+        // Pretty-print the JSON with 4-space indentation
+        serde_json::to_string_pretty(&gltf).unwrap()
     }
 
     /// Get the number of vertices for this mesh.

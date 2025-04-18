@@ -237,11 +237,12 @@ mod test {
 
         // Re-read the data.
         let s = read_fixed_length_string(&mut c, 11 as usize).unwrap();
-        let mut out = Vec::new();
+        let mut out: Vec<u8> = Vec::new();
         c.read_to_end(&mut out).unwrap();
 
+        let empty: Vec<u8> = [].to_vec();
         assert_eq!(s, "test\n\ntest");
-        assert_eq!(out, &[]);
+        assert_eq!(out, empty);
         assert_eq!(11, c.position());
     }
 
