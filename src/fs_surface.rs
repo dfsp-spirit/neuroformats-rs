@@ -366,6 +366,14 @@ impl BrainMesh {
         };
         let color_buffer: Vec<u8> = colors.to_vec();
 
+        let mut rgba_buffer = Vec::with_capacity(colors.len() / 3 * 4);
+        for chunk in colors.chunks_exact(3) {
+            rgba_buffer.extend(chunk); // R, G, B
+            rgba_buffer.push(255); // A=255 (fully opaque)
+        }
+
+        let cb = rgba_buffer.clone();
+
         // Create a normalized float32 version of the color buffer
         /*let color_buffer: Vec<u8> = color_buffer
             .chunks_exact(3)
@@ -386,12 +394,12 @@ impl BrainMesh {
         // Calculate buffer sizes
         let vertex_buffer_len = vertex_buffer.len() as u32;
         let index_buffer_len = index_buffer.len() as u32;
-        let color_buffer_len = color_buffer.len() as u32;
+        let color_buffer_len = rgba_buffer.len() as u32;
 
         // Combine buffers in correct order
         let mut binary_data = index_buffer;
         binary_data.extend(vertex_buffer);
-        binary_data.extend(color_buffer);
+        binary_data.extend(rgba_buffer);
 
         // Base64 encode
         let buffer_uri = format!(
@@ -415,14 +423,13 @@ impl BrainMesh {
             )
         };
 
-        // Calculate min and max for color buffer for r, g, b. They should be between 0 and 255 and returned as Vec<u8>
-        let cb = colors.to_vec();
+        // Calculate min and max for color buffer for r, g, b, a. They should be between 0 and 255 and returned as Vec<u8>
         let (min_color, max_color) = {
-            let mut min = [u8::MAX; 3]; // Start with highest possible u8 value
-            let mut max = [u8::MIN; 3]; // Start with lowest possible u8 value
+            let mut min = [u8::MAX; 4]; // Start with highest possible u8 value
+            let mut max = [u8::MIN; 4]; // Start with lowest possible u8 value
 
-            for chunk in colors.chunks_exact(3) {
-                for i in 0..3 {
+            for chunk in cb.chunks_exact(4) {
+                for i in 0..4 {
                     min[i] = min[i].min(chunk[i]);
                     max[i] = max[i].max(chunk[i]);
                 }
@@ -485,7 +492,7 @@ impl BrainMesh {
                 "byteOffset": 0,
                 "componentType": GLTF_TYPE_UBYTE,
                 "count": vertex_count as u32,
-                "type": "VEC3",
+                "type": "VEC4",
                 "normalized": true,
                 "min": min_color,
                 "max": max_color
