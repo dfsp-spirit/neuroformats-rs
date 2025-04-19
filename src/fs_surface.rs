@@ -364,7 +364,6 @@ impl BrainMesh {
                 &default_colors
             }
         };
-        let color_buffer: Vec<u8> = colors.to_vec();
 
         let mut rgba_buffer = Vec::with_capacity(colors.len() / 3 * 4);
         for chunk in colors.chunks_exact(3) {
@@ -937,10 +936,11 @@ mod test {
         let dir = tempdir().unwrap();
         const EXPORT_FILE: &str = "lh_mesh_white.gltf";
         // get path of current directory as &path::Path
-        let current_dir = std::env::current_dir().unwrap();
 
-        //let tfile_path = dir.path().join(EXPORT_FILE);
-        let tfile_path = current_dir.join(EXPORT_FILE);
+        let tfile_path = dir.path().join(EXPORT_FILE);
+
+        //let current_dir = std::env::current_dir().unwrap();
+        //let tfile_path = current_dir.join(EXPORT_FILE);
 
         let tfile_path = tfile_path.to_str().unwrap();
 
@@ -964,10 +964,10 @@ mod test {
         const EXPORT_FILE: &str = "lh_mesh_sulc_viridis.gltf";
 
         // get path of current directory as &path::Path
-        let current_dir = std::env::current_dir().unwrap();
+        //let current_dir = std::env::current_dir().unwrap();
+        //let tfile_path = current_dir.join(EXPORT_FILE);
 
-        //let tfile_path = dir.path().join(EXPORT_FILE);
-        let tfile_path = current_dir.join(EXPORT_FILE);
+        let tfile_path = dir.path().join(EXPORT_FILE);
 
         let tfile_path = tfile_path.to_str().unwrap();
 
