@@ -7,6 +7,7 @@ use crate::error::Result;
 
 use byteordered::byteorder::ReadBytesExt;
 
+
 use colorgrad::Gradient;
 
 /// Convert a slice of f32 values to a vector of RGB colors using the Viridis colormap.

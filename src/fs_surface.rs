@@ -17,6 +17,8 @@ use crate::util::read_fs_variable_length_string;
 use crate::util::values_to_colors;
 use crate::util::vec32minmax;
 
+use base64::{engine::general_purpose, Engine as _}; // WTF?! this is required for the absurd general_purpose::STANDARD_NO_PAD.encode() below, see https://www.reddit.com/r/programmingcirclejerk/comments/16zkmnl/base64s_rust_create_maintainer_bravely_defends/?rdt=55288
+
 use serde_json::json;
 
 use ndarray::{array, s, Array2};
@@ -403,7 +405,7 @@ impl BrainMesh {
         // Base64 encode
         let buffer_uri = format!(
             "data:application/octet-stream;base64,{}",
-            base64::encode(&binary_data)
+            general_purpose::STANDARD_NO_PAD.encode(&binary_data) // This API, WTF?! this should be base64::encode() without imports, but see https://www.reddit.com/r/programmingcirclejerk/comments/16zkmnl/base64s_rust_create_maintainer_bravely_defends/?rdt=55288
         );
 
         // Calculate bounds
