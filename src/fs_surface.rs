@@ -415,6 +415,23 @@ impl BrainMesh {
             )
         };
 
+        // Calculate min and max for color buffer for r, g, b. They should be between 0 and 255 and returned as Vec<u8>
+        let cb = colors.to_vec();
+        let (min_color, max_color) = {
+            let mut min = [u8::MAX; 3]; // Start with highest possible u8 value
+            let mut max = [u8::MIN; 3]; // Start with lowest possible u8 value
+
+            for chunk in colors.chunks_exact(3) {
+                for i in 0..3 {
+                    min[i] = min[i].min(chunk[i]);
+                    max[i] = max[i].max(chunk[i]);
+                }
+            }
+
+            // Convert to Vec<u8> (though arrays would work fine too)
+            (min.to_vec(), max.to_vec())
+        };
+
         // Build JSON structure
         let mut buffer_views = vec![
             json!({
@@ -470,8 +487,8 @@ impl BrainMesh {
                 "count": vertex_count as u32,
                 "type": "VEC3",
                 "normalized": true,
-                "min": [0, 0, 0],
-                "max": [255, 255, 255]
+                "min": min_color,
+                "max": max_color
             }));
 
             attributes["COLOR_0"] = 2.into();
