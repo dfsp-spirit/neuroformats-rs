@@ -322,7 +322,169 @@ impl BrainMesh {
         ply_lines.join("\n") + "\n"
     }
 
-    pub fn to_gltf(&self) -> String {
+    pub fn to_gltf(&self, vertex_colors: Option<&[u8]>) -> String {
+        let vertex_count = self.vertices.len() / 3;
+
+        // Validate all indices are within bounds
+        if let Some(invalid_idx) = self
+            .faces
+            .iter()
+            .find(|&&i| i < 0 || i as usize >= vertex_count)
+        {
+            panic!(
+                "Invalid face index {} (vertex count: {})",
+                invalid_idx, vertex_count
+            );
+        }
+
+        // Convert to u32 indices (glTF requirement)
+        let face_indices: Vec<u32> = self.faces.iter().map(|&i| i as u32).collect();
+
+        // Constants
+        const GLTF_TYPE_FLOAT32: i32 = 5126;
+        const GLTF_TYPE_UINT32: i32 = 5125;
+        const GLTF_TYPE_UBYTE: i32 = 5121;
+        const GLTF_BUFFERTYPE_ARRAY_BUFFER: i32 = 34962;
+        const GLTF_BUFFERTYPE_ELEMENT_ARRAY_BUFFER: i32 = 34963;
+
+        // Create vertex color buffer (default to white if not provided)
+        // Handle vertex colors - create owned vec if not provided
+        let default_colors: Vec<u8>;
+        let colors = match vertex_colors {
+            Some(colors) => {
+                assert_eq!(
+                    colors.len(),
+                    vertex_count * 3,
+                    "Vertex colors must have exactly 3 components (RGB) per vertex"
+                );
+                colors
+            }
+            None => {
+                default_colors = vec![255; vertex_count * 3];
+                &default_colors
+            }
+        };
+        let color_buffer: Vec<u8> = colors.to_vec();
+
+        // Create other buffers
+        let vertex_buffer: Vec<u8> = self.vertices.iter().flat_map(|v| v.to_le_bytes()).collect();
+
+        let index_buffer: Vec<u8> = face_indices.iter().flat_map(|i| i.to_le_bytes()).collect();
+
+        // Calculate buffer sizes
+        let vertex_buffer_len = vertex_buffer.len() as u32;
+        let index_buffer_len = index_buffer.len() as u32;
+        let color_buffer_len = color_buffer.len() as u32;
+
+        // Combine buffers in correct order
+        let mut binary_data = index_buffer;
+        binary_data.extend(vertex_buffer);
+        binary_data.extend(color_buffer);
+
+        // Base64 encode
+        let buffer_uri = format!(
+            "data:application/octet-stream;base64,{}",
+            base64::encode(&binary_data)
+        );
+
+        // Calculate bounds
+        let (min_pos, max_pos) = {
+            let mut min = [f32::MAX; 3];
+            let mut max = [f32::MIN; 3];
+            for chunk in self.vertices.chunks_exact(3) {
+                for i in 0..3 {
+                    min[i] = min[i].min(chunk[i]);
+                    max[i] = max[i].max(chunk[i]);
+                }
+            }
+            (
+                min.iter().map(|&v| v as f64).collect::<Vec<_>>(),
+                max.iter().map(|&v| v as f64).collect::<Vec<_>>(),
+            )
+        };
+
+        // Build JSON structure
+        let mut buffer_views = vec![
+            json!({
+                "buffer": 0,
+                "byteOffset": 0,
+                "byteLength": index_buffer_len,
+                "target": GLTF_BUFFERTYPE_ELEMENT_ARRAY_BUFFER
+            }),
+            json!({
+                "buffer": 0,
+                "byteOffset": index_buffer_len,
+                "byteLength": vertex_buffer_len,
+                "target": GLTF_BUFFERTYPE_ARRAY_BUFFER
+            }),
+        ];
+
+        let mut accessors = vec![
+            json!({
+                "bufferView": 0,
+                "byteOffset": 0,
+                "componentType": GLTF_TYPE_UINT32,
+                "count": face_indices.len() as u32,
+                "type": "SCALAR",
+                "max": [*face_indices.iter().max().unwrap_or(&0) as f64],
+                "min": [*face_indices.iter().min().unwrap_or(&0) as f64]
+            }),
+            json!({
+                "bufferView": 1,
+                "byteOffset": 0,
+                "componentType": GLTF_TYPE_FLOAT32,
+                "count": vertex_count as u32,
+                "type": "VEC3",
+                "max": max_pos,
+                "min": min_pos
+            }),
+        ];
+
+        // Add color buffer view and accessor if colors exist
+        let mut attributes = json!({ "POSITION": 1 });
+        if vertex_colors.is_some() {
+            buffer_views.push(json!({
+                "buffer": 0,
+                "byteOffset": index_buffer_len + vertex_buffer_len,
+                "byteLength": color_buffer_len,
+                "target": GLTF_BUFFERTYPE_ARRAY_BUFFER
+            }));
+
+            accessors.push(json!({
+                "bufferView": 2,
+                "byteOffset": 0,
+                "componentType": GLTF_TYPE_UBYTE,
+                "count": vertex_count as u32,
+                "type": "VEC3",
+                "normalized": true
+            }));
+
+            attributes["COLOR_0"] = 2.into();
+        }
+
+        let gltf = json!({
+            "asset": { "version": "2.0", "generator": "BrainMesh" },
+            "scenes": [{ "nodes": [0] }],
+            "nodes": [{ "mesh": 0 }],
+            "meshes": [{
+                "primitives": [{
+                    "attributes": attributes,
+                    "indices": 0,
+                    "mode": 4
+                }]
+            }],
+            "buffers": [{
+                "uri": buffer_uri,
+                "byteLength": index_buffer_len + vertex_buffer_len + color_buffer_len
+            }],
+            "bufferViews": buffer_views,
+            "accessors": accessors
+        });
+
+        serde_json::to_string_pretty(&gltf).expect("Failed to serialize glTF JSON")
+    }
+
+    pub fn to_gltf2(&self) -> String {
         let vertex_count = self.vertices.len() / 3;
 
         // Validate all indices are within bounds
@@ -464,6 +626,7 @@ impl BrainMesh {
 
         serde_json::to_string_pretty(&gltf).expect("Failed to serialize glTF JSON")
     }
+
     /// Get the number of vertices for this mesh.
     pub fn num_vertices(&self) -> usize {
         self.vertices.len() / 3
@@ -870,7 +1033,7 @@ mod test {
     }
 
     #[test]
-    fn a_surface_file_can_be_exported_in_gltf_format() {
+    fn a_surface_file_can_be_exported_in_gltf_format_without_vertex_colors() {
         const SURF_FILE: &str = "resources/subjects_dir/subject1/surf/lh.white";
         let surf = read_surf(SURF_FILE).unwrap();
 
@@ -888,7 +1051,7 @@ mod test {
 
         let tfile_path = tfile_path.to_str().unwrap();
 
-        let gltf_repr = surf.mesh.to_gltf();
+        let gltf_repr = surf.mesh.to_gltf(None);
         std::fs::write(tfile_path, gltf_repr)
             .expect("Unable to write vertex-colored glTF mesh file");
 
