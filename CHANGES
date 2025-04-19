@@ -1,8 +1,16 @@
 neuroformats Changes
 =====================
 
+
+If not explicitely mentioned, there are no breaking changes.
+
 Current WIP
 -----------
+
+
+Version 0.2.6
+-------------
+- Add support for exporting meshes in glTF format, with and without vertex colors.
 
 
 Version 0.2.5
@@ -10,7 +18,8 @@ Version 0.2.5
 - Add support for mapping per-vertex values to vertex colors, thanks to the colorgrad crate, see new neuroformats::values_to_colors() function
 - Add convenience function FsSurface.colors_from_curv_file() that reads a curv file and used neuroformats::values_to_colors() to map to colors using the viridis colormap
 - Add support for exporting meshes to PLY mesh format (ASCII version) via new BrainMesh.to_ply() function. Support export with and without vertex colors.
-- Update all depencies to latest versions. Adapt code to braking change: ArrayBase.genrows() was deprecated and renamed to ArrayBase.rows()
+- Update all depencies to latest versions. Adapt code to braking change in external crate: ArrayBase.genrows() was deprecated and renamed to ArrayBase.rows()
+
 
 
 Version 0.2.4

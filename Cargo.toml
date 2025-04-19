@@ -1,6 +1,6 @@
 [package]
 name = "neuroformats"
-version = "0.2.5"
+version = "0.2.6"
 authors = ["Tim Schäfer <ts+code@rcmd.org>"]
 edition = "2018"
 repository = "https://github.com/dfsp-spirit/neuroformats-rs"
