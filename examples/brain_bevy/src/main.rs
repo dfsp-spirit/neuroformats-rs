@@ -5,6 +5,9 @@
 // ```bash
 // sudo apt install pkg-config librust-alsa-sys-dev librust-libudev-sys-dev
 // ```
+//
+// This is basically a copy of the bevy example `bevy_gltf` with the addition of a brain mesh, see
+// https://bevyengine.org/examples/3d-rendering/load-gltf/ for the original example.
 
 use bevy::{
     pbr::{CascadeShadowConfigBuilder, DirectionalLightShadowMap},
