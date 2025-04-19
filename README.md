@@ -37,7 +37,7 @@ neuroformats = "0.2.3"
 * Read FreeSurfer brain surface parcellations (a.k.a. brain atlas, like `subject/label/lh.aparc.annot`): `read_annot`
 * Read and write FreeSurfer brain volumes and other data from MGH and MGZ files: `read_mgh` and `write_mgh`
 
-Various utility functions are implemented for performing common computations on the returned structs, e.g. computing the vox2ras matrix from the MGH header data or finding all vertices in a brain surface parcellation that belong to a certain brain atlas region.
+Various utility functions are implemented for performing common computations on the returned structs, e.g. computing the vox2ras matrix from the MGH header data or finding all vertices in a brain surface parcellation that belong to a certain brain atlas region. The library can also export brain meshes in standard mesh formats (Wavefront Object Format, PLY format, glTF), optionally with vertex colors based on per-vertex data (from curv or MGH/MGZ files) and the viridis colormap for quick visualization in tools like MeshLab or Blender.
 
 ## Documentation
 
@@ -57,9 +57,11 @@ let thickness_at_vertex_0 : f32 = curv.data[0];
 
 You now have a `Vec<f32>` with the cortical thickness values in `curv.data`. The order of the values matches the vertex order of the respective brain surface reconstruction (e.g., the white surface mesh of the left brain hemisphere in `subjects_dir/subject1/surf/lh.white`).
 
-### Full demo application
+### Full demo applications
 
-There is a small command line demo application that loads a brain surface mesh and raytraces an image based on the mesh to a PNG file available in the [./examples/brain_rpt directory](./examples/brain_rpt/src/main.rs). The demo uses the [rpt crate by Eric Zhang and Alexander Morozov](https://lib.rs/crates/rpt) to do the raytracing. Instructions for building/running the demo application are at the top of the main.rs file.
+* A simple example app that loads a brain mesh and per-vertex data (sulcal depth at each vertex), maps the per-vertex values to colors and exports the vertex-colored mesh in glTF format can be found in the [./examples/brain_export directory](./examples/brain_export/src/main.rs)
+* There is a small command line demo application that loads a brain surface mesh and raytraces an image based on the mesh to a PNG file available in the [./examples/brain_rpt directory](./examples/brain_rpt/src/main.rs). The demo uses the [rpt crate by Eric Zhang and Alexander Morozov](https://lib.rs/crates/rpt) to do the raytracing. Instructions for building/running the demo application are at the top of the main.rs file.
+* A simple demo that loads a brain mesh into bevy can be found in the [./examples/brain_bevy directory](./examples/brain_bevy/src/main.rs). This one requires some non-rust system dependencies to run, see the instructions in the main file for details.
 
 See the [neuroformats API docs](https://docs.rs/neuroformats) and the [unit tests in the source code](./src/) for more examples.
 
