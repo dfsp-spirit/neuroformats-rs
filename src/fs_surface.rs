@@ -952,6 +952,6 @@ mod test {
             .expect("Unable to write vertex-colored glTF mesh file");
 
         let gltf_repr_reread = std::fs::read_to_string(tfile_path).unwrap();
-        assert!(gltf_repr_reread.contains("bufferViews")); // Check the file with a mesh viewer like MeshLab. You will need at least v2023.12 for glTF support, which is not in Ubuntu 24 via apt. Get it via flatpak.
+        assert!(gltf_repr_reread.contains("bufferViews")); // Check the file with a mesh viewer. WARNING: MeshLab 2023.12 does not support them (see issue https://github.com/cnr-isti-vclab/meshlab/issues/1464), best to use https://sandbox.babylonjs.com/ or Blender, but in Blender you need to manually activate them to be displayed.
     }
 }
