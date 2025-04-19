@@ -360,11 +360,23 @@ impl BrainMesh {
                 colors
             }
             None => {
-                default_colors = vec![255; vertex_count * 3];
+                default_colors = vec![0; vertex_count * 3]; // TODO: change 0=black back to 255=white
                 &default_colors
             }
         };
         let color_buffer: Vec<u8> = colors.to_vec();
+
+        // Create a normalized float32 version of the color buffer
+        /*let color_buffer: Vec<u8> = color_buffer
+            .chunks_exact(3)
+            .flat_map(|chunk| {
+                let r = chunk[0] as f32 / 255.0;
+                let g = chunk[1] as f32 / 255.0;
+                let b = chunk[2] as f32 / 255.0;
+                vec![r.to_le_bytes(), g.to_le_bytes(), b.to_le_bytes()].concat()
+            })
+            .collect();
+        */
 
         // Create other buffers
         let vertex_buffer: Vec<u8> = self.vertices.iter().flat_map(|v| v.to_le_bytes()).collect();
@@ -442,6 +454,7 @@ impl BrainMesh {
 
         // Add color buffer view and accessor if colors exist
         let mut attributes = json!({ "POSITION": 1 });
+
         if vertex_colors.is_some() {
             buffer_views.push(json!({
                 "buffer": 0,
@@ -456,7 +469,9 @@ impl BrainMesh {
                 "componentType": GLTF_TYPE_UBYTE,
                 "count": vertex_count as u32,
                 "type": "VEC3",
-                "normalized": true
+                "normalized": true,
+                "min": [0, 0, 0],
+                "max": [255, 255, 255]
             }));
 
             attributes["COLOR_0"] = 2.into();
@@ -479,149 +494,6 @@ impl BrainMesh {
             }],
             "bufferViews": buffer_views,
             "accessors": accessors
-        });
-
-        serde_json::to_string_pretty(&gltf).expect("Failed to serialize glTF JSON")
-    }
-
-    pub fn to_gltf2(&self) -> String {
-        let vertex_count = self.vertices.len() / 3;
-
-        // Validate all indices are within bounds
-        if let Some(invalid_idx) = self
-            .faces
-            .iter()
-            .find(|&&i| i < 0 || i as usize >= vertex_count)
-        {
-            panic!(
-                "Invalid face index {} (vertex count: {})",
-                invalid_idx, vertex_count
-            );
-        }
-
-        // Convert to u32 indices (glTF requirement)
-        let face_indices: Vec<u32> = self.faces.iter().map(|&i| i as u32).collect();
-
-        const GLTF_TYPE_FLOAT32: i32 = 5126; // se https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-a-json-schema-reference, Section 3.6.2.2. Accessor Data Types
-        const GLTF_TYPE_UINT32: i32 = 5125;
-
-        const GLTF_BUFFERTYPE_ARRAY_BUFFER: i32 = 34962;
-        const GLTF_BUFFERTYPE_ELEMENT_ARRAY_BUFFER: i32 = 34963; // se https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-a-json-schema-reference, Section 5.11.5. bufferView.target
-
-        // Create buffers: these are u8, but each value occupies 4 bytes (we convert one f32 to [u8; 4] using to_le_bytes())
-        // glTF will interpret them correctly based on the componentType we specify (5126 for f32, 5125 for u32)
-        let vertex_buffer: Vec<u8> = self
-            .vertices
-            .iter()
-            .flat_map(|v| v.to_le_bytes().to_vec())
-            .collect();
-
-        // Same here: Each value occupies 4 bytes (we convert one u32 to [u8; 4] using to_le_bytes())
-        let index_buffer: Vec<u8> = face_indices
-            .iter()
-            .flat_map(|i| i.to_le_bytes().to_vec())
-            .collect();
-
-        // Calculate buffer sizes
-        let vertex_buffer_len = vertex_buffer.len() as u32;
-        let face_index_buffer_len = index_buffer.len() as u32;
-
-        // Note: you need to run unit tests with `cargo test -- --nocapture` to see the print statements
-        // print buffer sizes
-        println!(
-            "Vertex buffer size: {} bytes (representing {} values and {} vertices).",
-            vertex_buffer_len,
-            vertex_buffer_len / 4,
-            vertex_buffer_len / 4 / 3
-        );
-        println!(
-            "Face index buffer size: {} bytes (representing {} values and {} faces).",
-            face_index_buffer_len,
-            face_index_buffer_len / 4,
-            face_index_buffer_len / 4 / 3
-        );
-
-        // Combine buffers
-        let mut binary_data = index_buffer;
-        binary_data.extend(vertex_buffer);
-
-        // Base64 encode
-        let buffer_uri = format!(
-            "data:application/octet-stream;base64,{}",
-            base64::encode(&binary_data)
-        );
-
-        // Calculate bounds
-        let (min_pos, max_pos) = {
-            let mut min = [f32::MAX; 3];
-            let mut max = [f32::MIN; 3];
-            for chunk in self.vertices.chunks_exact(3) {
-                for i in 0..3 {
-                    min[i] = min[i].min(chunk[i]);
-                    max[i] = max[i].max(chunk[i]);
-                }
-            }
-            (
-                min.iter().map(|&v| v as f64).collect::<Vec<_>>(),
-                max.iter().map(|&v| v as f64).collect::<Vec<_>>(),
-            )
-        };
-
-        // Print min and max positions
-        println!("Min position: {:?}", min_pos);
-        println!("Max position: {:?}", max_pos);
-
-        // Build JSON structure
-        // TODO: FIXME: The orders of the buffers in bufferViews are reversed! compare to construction of buffers above
-        let gltf = json!({
-            "asset": { "version": "2.0", "generator": "BrainMesh" },
-            "scenes": [{ "nodes": [0] }],
-            "nodes": [{ "mesh": 0 }],
-            "meshes": [{
-                "primitives": [{
-                    "attributes": { "POSITION": 1 },
-                    "indices": 0,
-                    "mode": 4
-                }]
-            }],
-            "buffers": [{
-                "uri": buffer_uri,
-                "byteLength": vertex_buffer_len + face_index_buffer_len
-            }],
-            "bufferViews": [
-                {
-                    "buffer": 0,
-                    "byteOffset": 0,
-                    "byteLength": face_index_buffer_len,
-                    "target": GLTF_BUFFERTYPE_ELEMENT_ARRAY_BUFFER
-                },
-                {
-                    "buffer": 0,
-                    "byteOffset": face_index_buffer_len,
-                    "byteLength": vertex_buffer_len,
-                    "target": GLTF_BUFFERTYPE_ARRAY_BUFFER
-                }
-            ],
-            "accessors": [
-                {
-                    "bufferView": 0,
-                    "byteOffset": 0,
-                    "componentType": GLTF_TYPE_UINT32,
-                    "count": face_indices.len() as u32,
-                    "type": "SCALAR",
-                    "max": [*face_indices.iter().max().unwrap_or(&0) as f64],
-                    "min": [*face_indices.iter().min().unwrap_or(&0) as f64]
-                },
-                {
-                    "bufferView": 1,
-                    "byteOffset": 0,
-                    "componentType": GLTF_TYPE_FLOAT32,
-                    "count": vertex_count as u32,
-                    "type": "VEC3",
-                    "max": max_pos,
-                    "min": min_pos
-                }
-            ]
         });
 
         serde_json::to_string_pretty(&gltf).expect("Failed to serialize glTF JSON")
@@ -993,7 +865,8 @@ mod test {
 
         let dir = tempdir().unwrap();
 
-        let tfile_path = dir.path().join("temp-file.surface");
+        const EXPORT_FILE: &str = "tempfile_lhwhite.ply";
+        let tfile_path = dir.path().join(EXPORT_FILE);
         let tfile_path = tfile_path.to_str().unwrap();
         write_surf(tfile_path, &surf).unwrap();
 
@@ -1019,9 +892,9 @@ mod test {
 
         // get path of current directory as &path::Path
         //let current_dir = std::env::current_dir().unwrap();
-
-        let tfile_path = dir.path().join("temp-file.ply");
-        //let tfile_path = current_dir.join("temp-file.ply");
+        const EXPORT_FILE: &str = "lh_mesh_thickness_viridis.ply";
+        let tfile_path = dir.path().join(EXPORT_FILE);
+        //let tfile_path = current_dir.join(EXPORT_FILE);
 
         let tfile_path = tfile_path.to_str().unwrap();
 
@@ -1037,25 +910,48 @@ mod test {
         const SURF_FILE: &str = "resources/subjects_dir/subject1/surf/lh.white";
         let surf = read_surf(SURF_FILE).unwrap();
 
-        let colors: Vec<u8> = surf
-            .colors_from_curv_file("resources/subjects_dir/subject1/surf/lh.thickness")
-            .unwrap();
-
         let dir = tempdir().unwrap();
-
+        const EXPORT_FILE: &str = "lh_mesh_white.gltf";
         // get path of current directory as &path::Path
         let current_dir = std::env::current_dir().unwrap();
 
-        //let tfile_path = dir.path().join("temp-file.gltf");
-        let tfile_path = current_dir.join("temp-file.gltf");
+        //let tfile_path = dir.path().join(EXPORT_FILE);
+        let tfile_path = current_dir.join(EXPORT_FILE);
 
         let tfile_path = tfile_path.to_str().unwrap();
 
         let gltf_repr = surf.mesh.to_gltf(None);
+        std::fs::write(tfile_path, gltf_repr).expect("Unable to write glTF mesh file");
+
+        let gltf_repr_reread = std::fs::read_to_string(tfile_path).unwrap();
+        assert!(gltf_repr_reread.contains("bufferViews")); // Check the file with a mesh viewer like MeshLab. You will need at least v2023.12 for glTF support, which is not in Ubuntu 24 via apt. Get it via flatpak.
+    }
+
+    #[test]
+    fn a_surface_file_can_be_exported_in_gltf_format_with_vertex_colors() {
+        const SURF_FILE: &str = "resources/subjects_dir/subject1/surf/lh.white";
+        let surf = read_surf(SURF_FILE).unwrap();
+
+        let colors: Vec<u8> = surf
+            .colors_from_curv_file("resources/subjects_dir/subject1/surf/lh.sulc")
+            .unwrap();
+
+        let dir = tempdir().unwrap();
+        const EXPORT_FILE: &str = "lh_mesh_sulc_viridis.gltf";
+
+        // get path of current directory as &path::Path
+        let current_dir = std::env::current_dir().unwrap();
+
+        //let tfile_path = dir.path().join(EXPORT_FILE);
+        let tfile_path = current_dir.join(EXPORT_FILE);
+
+        let tfile_path = tfile_path.to_str().unwrap();
+
+        let gltf_repr = surf.mesh.to_gltf(Some(&colors));
         std::fs::write(tfile_path, gltf_repr)
             .expect("Unable to write vertex-colored glTF mesh file");
 
         let gltf_repr_reread = std::fs::read_to_string(tfile_path).unwrap();
-        assert!(gltf_repr_reread.contains("bufferViews")); // Check the file with a mesh viewer like MeshLab. Under Ubuntu 24: ```sudo apt install meshlab```, then ```XDG_SESSION_TYPE="" meshlab temp-file.ply```
+        assert!(gltf_repr_reread.contains("bufferViews")); // Check the file with a mesh viewer like MeshLab. You will need at least v2023.12 for glTF support, which is not in Ubuntu 24 via apt. Get it via flatpak.
     }
 }
