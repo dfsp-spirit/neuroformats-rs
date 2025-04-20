@@ -1,5 +1,3 @@
-use std::path::{Path, PathBuf};
-
 fn main() {
     let lh_surf_file = "../../resources/subjects_dir/subject1/surf/lh.white";
     let rh_surf_file = "../../resources/subjects_dir/subject1/surf/rh.white";
@@ -37,14 +35,17 @@ fn main() {
         bankssts_mean_sulc
     );
 
-    let lh_colors = lh_surf
-        .colors_from_curv_file("../../resources/subjects_dir/subject1/surf/lh.sulc")
-        .unwrap();
+    //let lh_colors = lh_surf
+    //    .colors_from_curv_file("../../resources/subjects_dir/subject1/surf/lh.sulc")
+    //    .unwrap();
     let rh_colors = rh_surf
         .colors_from_curv_file("../../resources/subjects_dir/subject1/surf/rh.sulc")
         .unwrap();
 
-    let brain = lh_surf.mesh.merge(&rh_surf.mesh);
+    let lh_colors = lh_annot.vertex_colors(false, 0);
+
+    let mut brain = lh_surf.mesh.merge(&rh_surf.mesh);
+    brain.move_to(brain.center().unwrap()); // center the mesh at origin
 
     // merge the colors
     let brain_colors = lh_colors
@@ -56,8 +57,8 @@ fn main() {
     // get path of current directory as &path::Path
     let current_dir = std::env::current_dir().unwrap();
 
-    const LH_EXPORT_FILE: &str = "brainmesh.ply";
-    let export_path = current_dir.join(LH_EXPORT_FILE);
+    const EXPORT_FILE: &str = "brainmesh.ply";
+    let export_path = current_dir.join(EXPORT_FILE);
     let export_path = export_path.to_str().unwrap();
 
     let ply_repr = brain.to_ply(Some(&brain_colors));
@@ -65,5 +66,5 @@ fn main() {
 
     // Print export file path
     println!("Exported vertex-colored PLY mesh to: {}", export_path);
-    println!("Note: You can view the mesh with a mesh viewer software like Blender or MeshLab. If you have MeshLab installed, just run: `meshlab {}`", LH_EXPORT_FILE);
+    println!("Note: You can view the mesh with a mesh viewer software like Blender or MeshLab. If you have MeshLab installed, just run: `meshlab {}`", EXPORT_FILE);
 }
