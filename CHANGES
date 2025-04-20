@@ -7,6 +7,10 @@ If not explicitely mentioned, there are no breaking changes.
 Current WIP
 -----------
 
+Version 0.3.0
+-------------
+- Add support for merging meshes.
+
 
 Version 0.2.6
 -------------
