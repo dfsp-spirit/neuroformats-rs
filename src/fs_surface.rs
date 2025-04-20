@@ -611,6 +611,61 @@ impl BrainMesh {
     pub fn center(&self) -> Result<(f32, f32, f32)> {
         coord_center(&self.vertices)
     }
+
+    /// Merge two meshes into one.
+    ///
+    /// Creates a new mesh that contains all vertices and faces from both meshes. Does not modify the original meshes.
+    ///
+    /// # Arguments
+    /// * `other` - The other mesh to merge with.
+    ///
+    /// # Returns
+    /// A new `BrainMesh` instance containing the merged data.
+    ///
+    pub fn merge(&self, other: &BrainMesh) -> BrainMesh {
+        let mut merged_vertices = self.vertices.clone();
+        let mut merged_faces = self.faces.clone();
+
+        // Offset the face indices of the second mesh to avoid index conflicts
+        let offset = self.num_vertices() as i32;
+        for i in 0..other.faces.len() {
+            merged_faces.push(other.faces[i] + offset);
+        }
+
+        merged_vertices.extend_from_slice(&other.vertices);
+
+        BrainMesh {
+            vertices: merged_vertices,
+            faces: merged_faces,
+        }
+    }
+
+    /// Move the mesh to a new location by adding the given offset to each vertex.
+    ///
+    /// # Arguments
+    /// * `offset` - A tuple containing the x, y, and z offsets to apply to each vertex.
+    ///
+    /// # Returns
+    /// Nothing, changes the mesh in place.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// // This example uses the center() function to move the mesh to the origin.
+    /// let mut mesh = neuroformats::BrainMesh::from_obj_file("resources/mesh/cube.obj").unwrap();
+    /// let (cx, cy, cz) = mesh.center().unwrap();
+    /// mesh.move_to((cx, cy, cz));
+    /// ```
+    pub fn move_to(&mut self, offset: (f32, f32, f32)) {
+        for i in 0..self.vertices.len() {
+            if i % 3 == 0 {
+                self.vertices[i] -= offset.0;
+            } else if i % 3 == 1 {
+                self.vertices[i] -= offset.1;
+            } else {
+                self.vertices[i] -= offset.2;
+            }
+        }
+    }
 }
 
 impl fmt::Display for BrainMesh {
@@ -979,5 +1034,18 @@ mod test {
 
         let gltf_repr_reread = std::fs::read_to_string(tfile_path).unwrap();
         assert!(gltf_repr_reread.contains("bufferViews")); // Check the file with a mesh viewer. WARNING: MeshLab 2023.12 does not support them (see issue https://github.com/cnr-isti-vclab/meshlab/issues/1464), best to use https://sandbox.babylonjs.com/ or Blender, but in Blender you need to manually activate them to be displayed.
+    }
+
+    #[test]
+    fn two_meshes_can_be_merged() {
+        const LH_SURF_FILE: &str = "resources/subjects_dir/subject1/surf/lh.white";
+        const RH_SURF_FILE: &str = "resources/subjects_dir/subject1/surf/rh.white";
+
+        let lh_surf = read_surf(LH_SURF_FILE).unwrap();
+        let rh_surf = read_surf(RH_SURF_FILE).unwrap();
+
+        let brain = lh_surf.mesh.merge(&rh_surf.mesh);
+        assert!(brain.num_vertices() == lh_surf.mesh.num_vertices() + rh_surf.mesh.num_vertices());
+        assert!(brain.num_faces() == lh_surf.mesh.num_faces() + rh_surf.mesh.num_faces());
     }
 }
