@@ -22,11 +22,13 @@ In surface-based neuroimaging, basically meshes representing the 3D structure of
 
 The `neuroformats` crate [is on crates.io](https://crates.io/crates/neuroformats).
 
-To use the library in your project, add it as a dependency in your `Cargo.toml` file, e.g.:
+To use the library in your project, run `cargo add neuroformats` in your project directory.
+
+Alternatively, you could manually add it as a dependency in your `Cargo.toml` file, e.g.:
 
 ```toml
 [dependencies]
-neuroformats = "0.2.3"
+neuroformats = "0.3.0"
 ```
 
 ## Features
