@@ -97,8 +97,6 @@ fn main() {
 * [brain_atlas](./examples/brain_atlas/src/main.rs): Demonstrates how to load a brain surface atlas (the Desikan-Killiany atlas), find the vertices that belong to a specific atlas region, and the respective morphometry values for these vertices. The app then computes the average cortical thickness in a brain region.
 * [brain_export](./examples/brain_export/src/main.rs) This app loads a brain mesh and per-vertex data (sulcal depth at each vertex), and maps the per-vertex values to colors using the viridis colormap. It does this for both hemispheres, then combines the meshes into a single mesh, centers it at the origin, merges the color values as well, and exports the result as a vertex-colored PLY file. The resulting file can be visualized in standard mesh viewers like Blender or MeshLab.
 
-To run the demo apps, type ```cargo run```in the respective directory, e.g., in [./examples/brain_morph/](./examples/brain_morph/).
-
 See the [neuroformats API docs](https://docs.rs/neuroformats) and the [unit tests in the source code](./src/) for more examples for using the neuroformats functions.
 
 #### Related demo apps
@@ -108,6 +106,21 @@ These apps do not directly illustrate using the neuroformats API, but use Rust-b
 * There is a small command line demo application that loads a brain surface mesh and raytraces an image based on the mesh to a PNG file available in the [./examples/brain_rpt directory](./examples/brain_rpt/src/main.rs). The demo uses the [rpt crate by Eric Zhang and Alexander Morozov](https://lib.rs/crates/rpt) to do the raytracing. This can take quite a while on slower computers (more than 10 minutes on my laptop).
 * A simple demo that loads a brain mesh into a simple scene using the bevy game engine for real-time viewing can be found in the [./examples/brain_bevy directory](./examples/brain_bevy/src/main.rs). This one requires some non-Rust system dependencies to run and is thus a bit harder to install. See the instructions in the main file if you're using some Debian-based Linux like Ubuntu.
 
+
+#### Running the apps on your system
+
+To run the demo apps, type ```cargo run```in the respective directory, e.g., in [./examples/brain_morph/](./examples/brain_morph/).
+
+**Long version of the instructions**:
+
+* Make sure you have git and rust installed.
+* Clone the repo and use cargo to run the respective app, e.g.:
+
+```shell
+git clone https://github.com/dfsp-spirit/neuroformats-rs.git
+cd neuroformats-rs/examples/brain_morph/
+cargo run
+```
 
 
 ## Development Info
