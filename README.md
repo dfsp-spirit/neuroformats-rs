@@ -50,42 +50,49 @@ The `neuroformats` API docs can be found at [docs.rs/neuroformats](https://docs.
 Read data computed by FreeSurfer for your subject `subject1` from the standard FreeSurfer output directory structure (SUBJECTS_DIR):
 
 ```rust
-// Read the brain mesh of the left hemisphere
-let lh_surface = neuroformats::read_surf("subjects_dir/subject1/surf/lh.white").unwrap();
+fn main() {
+    // Read the brain mesh of the left hemisphere
+    let lh_surface =
+        neuroformats::read_surf("subject1/surf/lh.white").unwrap();
 
-// Read morphometry data (native space cortical thickness per vertex) for the mesh
-let lh_thickness = neuroformats::read_curv("subjects_dir/subject1/surf/lh.thickness").unwrap();
+    // Read morphometry data (native space cortical thickness per vertex) for the mesh
+    let lh_thickness =
+        neuroformats::read_curv("subject1/surf/lh.thickness").unwrap();
 
-// Load cortical mask
-let lh_cortex = neuroformats::read_label("subjects_dir/subject1/label/lh.cortex.label").unwrap();
+    // Load cortical mask
+    let lh_cortex =
+        neuroformats::read_label("subject1/label/lh.cortex.label")
+            .unwrap();
 
-// Print some info
-print!("The left surface has {} vertices, of which {} are part of the cortex.\n",
-        lh_surf.mesh.num_vertices(),
+    // Print some info
+    print!(
+        "The left surface has {} vertices, of which {} are part of the cortex.\n",
+        lh_surface.mesh.num_vertices(),
         lh_cortex.vertexes.len()
-      );
+    );
 
-print!(
-    "The cortical thickness at vertex 0 is {:.2} mm.\n",
-    curv.data[0]
-);
+    print!(
+        "The cortical thickness at vertex 0 is {:.2} mm.\n",
+        lh_thickness.data[0]
+    );
 
-// Compute the mean cortical thickness for the left hemisphere, ignoring medial wall (non-cortex) vertices
-let mut lh_cortex_thickness_sum = 0.0;
-for vertex in lh_cortex.vertexes.iter() {
-    lh_cortex_thickness_sum += lh_thickness.data[vertex.index as usize];
+    // Compute the mean cortical thickness for the left hemisphere, ignoring medial wall (non-cortex) vertices
+    let mut lh_cortex_thickness_sum = 0.0;
+    for vertex in lh_cortex.vertexes.iter() {
+        lh_cortex_thickness_sum += lh_thickness.data[vertex.index as usize];
+    }
+    let lh_cortex_thickness_mean = lh_cortex_thickness_sum / lh_cortex.vertexes.len() as f32;
+    print!(
+        "The mean cortical thickness for the left hemisphere is {:.2} mm.\n",
+        lh_cortex_thickness_mean
+    );
 }
-let lh_cortex_thickness_mean = lh_cortex_thickness_sum / lh_cortex_num_verts as f32;
-print!(
-    "The mean cortical thickness for the left hemisphere is {:.2} mm.\n",
-    lh_cortex_thickness_mean
-);
 ```
 
-You now have a `Vec<f32>` with the cortical thickness values in `curv.data`. The order of the values matches the vertex order of the respective brain surface reconstruction (e.g., the white surface mesh of the left brain hemisphere in `subjects_dir/subject1/surf/lh.white`).
 
 ### Full demo applications
 
+* [brain_readme](./examples/brain_readme/src/main.rs): The code from the short usage example above, wrapped in a main function and with paths adapted to point to the directory of demo files that comes with the package, so that it runs without further changes.
 * [brain_morph](./examples/brain_morph/src/main.rs): A simple application that demonstrates working with morphometry data. It shows how to load brain surfaces and the cortical thickness values for each vertex. It then proceeds to load a cortex mask, and uses it to compute the average cortical thickness per hemisphere, restricted to cortical vertices (i.e., ignoring the medial wall).
 * [brain_atlas](./examples/brain_atlas/src/main.rs): Demonstrates how to load a brain surface atlas (the Desikan-Killiany atlas), find the vertices that belong to a specific atlas region, and the respective morphometry values for these vertices. The app then computes the average cortical thickness in a brain region.
 * [brain_export](./examples/brain_export/src/main.rs) This app loads a brain mesh and per-vertex data (sulcal depth at each vertex), and maps the per-vertex values to colors using the viridis colormap. It does this for both hemispheres, then combines the meshes into a single mesh, centers it at the origin, merges the color values as well, and exports the result as a vertex-colored PLY file. The resulting file can be visualized in standard mesh viewers like Blender or MeshLab.
