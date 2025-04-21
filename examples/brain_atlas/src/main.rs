@@ -3,21 +3,26 @@
 ///
 /// This file is part of neuroformats.rs, see https://github.com/dfsp-spirit/neuroformats-rs
 ///
+/// To run this application, run 'cargo run --release' in the examples/brain_atlas directory.
 
 fn main() {
+    println!("=====[ brain_atlas -- neuroformats.rs surface atlas example application ]=====");
     let lh_surf_file = "../../resources/subjects_dir/subject1/surf/lh.white";
     let rh_surf_file = "../../resources/subjects_dir/subject1/surf/rh.white";
     let lh_atlas_file = "../../resources/subjects_dir/subject1/label/lh.aparc.annot";
     let rh_atlas_file = "../../resources/subjects_dir/subject1/label/rh.aparc.annot";
 
     // read the brain surfaces (meshes)
+    println!("Loading brain surfaces...");
     let lh_surf = neuroformats::read_surf(lh_surf_file).unwrap();
     let rh_surf = neuroformats::read_surf(rh_surf_file).unwrap();
 
+    println!("Loading surface atlas...");
     // Read desikan surface atlas for the subject
     let lh_annot = neuroformats::read_annot(lh_atlas_file).unwrap();
     let rh_annot = neuroformats::read_annot(rh_atlas_file).unwrap();
 
+    println!("Chekcing atlas regions for left hemisphere...");
     // Extract brain region names from the annotation files
     let lh_regions: Vec<String> = lh_annot.regions();
     let rh_regions: Vec<String> = rh_annot.regions();
@@ -50,6 +55,7 @@ fn main() {
     // reported by FreeSurfer in its stats files.
 
     // Read the cortical thickness file for the left hemisphere
+    println!("Computing mean cortical thickness in bankssts region...");
     let lh_thickness_file = "../../resources/subjects_dir/subject1/surf/lh.thickness";
     let lh_thickness = neuroformats::read_curv(lh_thickness_file).unwrap();
 
@@ -66,6 +72,7 @@ fn main() {
         region_verts_bankssts.len(), bankssts_mean_thickness
     );
 
+    println!("Preparing brain mesh for export...");
     // Get the vertex colors for the atlas regions, and apply them to the brain meshes.
     let lh_colors = lh_annot.vertex_colors(false, 0);
     let rh_colors = rh_annot.vertex_colors(false, 0);

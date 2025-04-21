@@ -1,3 +1,9 @@
+///
+/// brain_export -- neuroformats.rs example application that exports a brain mesh with vertex colors
+///
+/// This file is part of neuroformats.rs, see https://github.com/dfsp-spirit/neuroformats-rs
+///
+
 fn main() {
     let lh_surf_file = "../../resources/subjects_dir/subject1/surf/lh.white";
     let rh_surf_file = "../../resources/subjects_dir/subject1/surf/rh.white";
