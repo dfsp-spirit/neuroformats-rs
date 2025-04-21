@@ -47,12 +47,39 @@ The `neuroformats` API docs can be found at [docs.rs/neuroformats](https://docs.
 
 ### Short usage example
 
-Read vertex-wise cortical thickness computed by FreeSurfer:
+Read data computed by FreeSurfer for your subject `subject1` from the standard FreeSurfer output directory structure (SUBJECTS_DIR):
 
 ```rust
-use neuroformats::read_curv;
-let curv = read_curv("subjects_dir/subject1/surf/lh.thickness").unwrap();
-let thickness_at_vertex_0 : f32 = curv.data[0];
+// Read the brain mesh of the left hemisphere
+let lh_surface = neuroformats::read_surf("subjects_dir/subject1/surf/lh.white").unwrap();
+
+// Read morphometry data (native space cortical thickness per vertex) for the mesh
+let lh_thickness = neuroformats::read_curv("subjects_dir/subject1/surf/lh.thickness").unwrap();
+
+// Load cortical mask
+let lh_cortex = neuroformats::read_label("subjects_dir/subject1/label/lh.cortex.label").unwrap();
+
+// Print some info
+print!("The left surface has {} vertices, of which {} are part of the cortex.\n",
+        lh_surf.mesh.num_vertices(),
+        lh_cortex.vertexes.len()
+      );
+
+print!(
+    "The cortical thickness at vertex 0 is {:.2} mm.\n",
+    curv.data[0]
+);
+
+// Compute the mean cortical thickness for the left hemisphere, ignoring medial wall (non-cortex) vertices
+let mut lh_cortex_thickness_sum = 0.0;
+for vertex in lh_cortex.vertexes.iter() {
+    lh_cortex_thickness_sum += lh_thickness.data[vertex.index as usize];
+}
+let lh_cortex_thickness_mean = lh_cortex_thickness_sum / lh_cortex_num_verts as f32;
+print!(
+    "The mean cortical thickness for the left hemisphere is {:.2} mm.\n",
+    lh_cortex_thickness_mean
+);
 ```
 
 You now have a `Vec<f32>` with the cortical thickness values in `curv.data`. The order of the values matches the vertex order of the respective brain surface reconstruction (e.g., the white surface mesh of the left brain hemisphere in `subjects_dir/subject1/surf/lh.white`).
