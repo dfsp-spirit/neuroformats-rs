@@ -59,11 +59,21 @@ You now have a `Vec<f32>` with the cortical thickness values in `curv.data`. The
 
 ### Full demo applications
 
-* A simple example app that loads a brain mesh and per-vertex data (sulcal depth at each vertex), maps the per-vertex values to colors and exports the vertex-colored mesh in glTF format can be found in the [./examples/brain_export directory](./examples/brain_export/src/main.rs)
-* There is a small command line demo application that loads a brain surface mesh and raytraces an image based on the mesh to a PNG file available in the [./examples/brain_rpt directory](./examples/brain_rpt/src/main.rs). The demo uses the [rpt crate by Eric Zhang and Alexander Morozov](https://lib.rs/crates/rpt) to do the raytracing. Instructions for building/running the demo application are at the top of the main.rs file.
-* A simple demo that loads a brain mesh into bevy can be found in the [./examples/brain_bevy directory](./examples/brain_bevy/src/main.rs). This one requires some non-rust system dependencies to run, see the instructions in the main file for details.
+* [brain_morph](./examples/brain_morph/src/main.rs): A simple application that demonstrates working with morphometry data. It shows how to load brain surfaces and the cortical thickness values for each vertex. It then proceeds to load a cortex mask, and uses it to compute the average cortical thickness per hemisphere, restricted to cortical vertices (i.e., ignoring the medial wall).
+* [brain_atlas](./examples/brain_atlas/src/main.rs): Demonstrates how to load a brain surface atlas (the Desikan-Killiany atlas), find the vertices that belong to a specific atlas region, and the respective morphometry values for these vertices. The app then computes the average cortical thickness in a brain region.
+* [brain_export](./examples/brain_export/src/main.rs) This app loads a brain mesh and per-vertex data (sulcal depth at each vertex), maps the per-vertex values to colors. It does this for both hemispheres, then combines the meshes into a single mesh, centers it at the origin, merges the color values as well, and export the result as a vertex-colored PLY file. The resulting file can be visualized in standard mesh viewers like Blender or MeshLab.
 
-See the [neuroformats API docs](https://docs.rs/neuroformats) and the [unit tests in the source code](./src/) for more examples.
+To run the demo apps, type ```cargo run```in the respective directory, e.g., in [./examples/brain_morph/](./examples/brain_morph/).
+
+See the [neuroformats API docs](https://docs.rs/neuroformats) and the [unit tests in the source code](./src/) for more examples for using the neuroformats functions.
+
+#### Related demo apps
+
+These apps do not directly illustrate using the neuroformats API, but use Rust-based tools to visualize the exported brain meshes.
+
+* There is a small command line demo application that loads a brain surface mesh and raytraces an image based on the mesh to a PNG file available in the [./examples/brain_rpt directory](./examples/brain_rpt/src/main.rs). The demo uses the [rpt crate by Eric Zhang and Alexander Morozov](https://lib.rs/crates/rpt) to do the raytracing. This takes quite a while on slower computers (more than 10 minutes on my laptop).
+* A simple demo that loads a brain mesh into a simple scene in the bevy game engine for real-time viewing can be found in the [./examples/brain_bevy directory](./examples/brain_bevy/src/main.rs). This one requires some non-Rust system dependencies to run and is thus a bit harder to install. See the instructions in the main file if you're using some Debian-based Linux like Ubuntu.
+
 
 
 ## Development Info
