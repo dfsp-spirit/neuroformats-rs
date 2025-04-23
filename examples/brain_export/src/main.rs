@@ -42,8 +42,14 @@ fn main() {
 
     let ply_repr = brain.to_ply(Some(&brain_colors));
     std::fs::write(export_path, ply_repr).expect("Unable to write vertex-colored PLY mesh file");
-
-    // Print export file path
     println!("Exported vertex-colored PLY mesh to: {}", export_path);
-    println!("Note: You can view the mesh with a mesh viewer software like Blender or MeshLab. If you have MeshLab installed, just run: `meshlab {}`", EXPORT_FILE);
+
+    let gltf_repr = brain.to_gltf(Some(&brain_colors));
+    let gltf_export_path = current_dir.join("brainmesh_sulc.gltf");
+    let gltf_export_path = gltf_export_path.to_str().unwrap();
+    std::fs::write(gltf_export_path, gltf_repr)
+        .expect("Unable to write vertex-colored GLTF mesh file");
+    println!("Exported vertex-colored GLTF mesh to: {}", gltf_export_path);
+
+    println!("Note: You can view the meshes with a mesh viewer software like Blender or MeshLab. If you have MeshLab installed, just run: `meshlab {}`", EXPORT_FILE);
 }
