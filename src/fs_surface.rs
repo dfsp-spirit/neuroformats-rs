@@ -16,6 +16,8 @@ use crate::read_curv;
 use crate::util::read_fs_variable_length_string;
 use crate::util::values_to_colors;
 use crate::util::vec32minmax;
+use crate::util::{checked_mul_dims, validate_finite_vertex_values};
+use crate::config;
 
 use base64::{engine::general_purpose, Engine as _}; // WTF?! this is required for the absurd general_purpose::STANDARD_NO_PAD.encode() below, see https://www.reddit.com/r/programmingcirclejerk/comments/16zkmnl/base64s_rust_create_maintainer_bravely_defends/?rdt=55288
 
@@ -68,7 +70,7 @@ impl FsSurfaceHeader {
         hdr.surf_magic[0] = input.read_u8()?;
         hdr.surf_magic[1] = input.read_u8()?;
         hdr.surf_magic[2] = input.read_u8()?;
-        hdr.info_line = read_fs_variable_length_string(&mut input)?;
+        hdr.info_line = read_fs_variable_length_string(&mut input, config::max_string_length())?;
         hdr.num_vertices = input.read_i32()?;
         hdr.num_faces = input.read_i32()?;
 
@@ -703,9 +705,9 @@ impl FsSurface {
     pub fn from_file<P: AsRef<Path> + Copy>(path: P) -> Result<FsSurface> {
         let mut file = BufReader::new(File::open(path)?);
 
-        let hdr = FsSurfaceHeader::from_reader(&mut file).unwrap();
+        let hdr = FsSurfaceHeader::from_reader(&mut file)?;
 
-        let mesh: BrainMesh = FsSurface::mesh_from_reader(&mut file, &hdr);
+        let mesh: BrainMesh = FsSurface::mesh_from_reader(&mut file, &hdr)?;
 
         let surf = FsSurface {
             header: hdr,
@@ -735,33 +737,68 @@ impl FsSurface {
     }
 
     /// Read a brain mesh, i.e., the data part of an FsSurface instance, from a reader.
-    pub fn mesh_from_reader<S>(input: &mut S, hdr: &FsSurfaceHeader) -> BrainMesh
+    pub fn mesh_from_reader<S>(input: &mut S, hdr: &FsSurfaceHeader) -> Result<BrainMesh>
     where
         S: BufRead,
     {
+        // Validate vertex and face counts.
+        if hdr.num_vertices < 0 {
+            return Err(NeuroformatsError::InvalidHeaderValue(format!(
+                "Negative vertex count: {}",
+                hdr.num_vertices
+            )));
+        }
+        if hdr.num_faces < 0 {
+            return Err(NeuroformatsError::InvalidHeaderValue(format!(
+                "Negative face count: {}",
+                hdr.num_faces
+            )));
+        }
+
+        let num_vertices = hdr.num_vertices as usize;
+        if num_vertices > config::max_vertices() {
+            return Err(NeuroformatsError::AllocationTooLarge);
+        }
+
+        // Check vertex coordinate allocation (3 coords per vertex, each f32 = 4 bytes).
+        let num_vert_coords = checked_mul_dims(&[hdr.num_vertices, 3])?;
+        let vert_bytes = num_vert_coords
+            .checked_mul(4)
+            .ok_or(NeuroformatsError::IntegerOverflow)?;
+        if vert_bytes > config::max_bytes_per_file() {
+            return Err(NeuroformatsError::AllocationTooLarge);
+        }
+
+        // Check face index allocation (3 indices per face, each i32 = 4 bytes).
+        let num_face_indices = checked_mul_dims(&[hdr.num_faces, 3])?;
+        let face_bytes = num_face_indices
+            .checked_mul(4)
+            .ok_or(NeuroformatsError::IntegerOverflow)?;
+        if face_bytes > config::max_bytes_per_file() {
+            return Err(NeuroformatsError::AllocationTooLarge);
+        }
+
         let mut input = ByteOrdered::be(input);
 
-        let num_vert_coords: i32 = hdr.num_vertices * 3;
-        let mut vertex_data: Vec<f32> = Vec::with_capacity(num_vert_coords as usize);
-        for _ in 1..=hdr.num_vertices * 3 {
-            vertex_data.push(input.read_f32().unwrap());
+        let mut vertex_data: Vec<f32> = Vec::with_capacity(num_vert_coords);
+        for _ in 0..num_vert_coords {
+            vertex_data.push(input.read_f32().map_err(|e| NeuroformatsError::Io(e))?);
         }
 
-        //let vertices = Array::from_shape_vec((hdr.num_vertices as usize, 3 as usize), vertex_data).unwrap();
+        // Validate vertex data contains no NaN/Inf values.
+        validate_finite_vertex_values(&vertex_data, "vertex coordinate")?;
 
-        let mut face_data: Vec<i32> = Vec::with_capacity((hdr.num_faces * 3) as usize);
-        for _ in 1..=hdr.num_faces * 3 {
-            face_data.push(input.read_i32().unwrap());
+        let mut face_data: Vec<i32> = Vec::with_capacity(num_face_indices);
+        for _ in 0..num_face_indices {
+            face_data.push(input.read_i32().map_err(|e| NeuroformatsError::Io(e))?);
         }
-
-        //let faces = Array::from_shape_vec((hdr.num_faces as usize, 3 as usize), face_data).unwrap();
 
         let mesh = BrainMesh {
             vertices: vertex_data,
             faces: face_data,
         };
 
-        mesh
+        Ok(mesh)
     }
 }
 
@@ -1047,5 +1084,76 @@ mod test {
         let brain = lh_surf.mesh.merge(&rh_surf.mesh);
         assert!(brain.num_vertices() == lh_surf.mesh.num_vertices() + rh_surf.mesh.num_vertices());
         assert!(brain.num_faces() == lh_surf.mesh.num_faces() + rh_surf.mesh.num_faces());
+    }
+
+    #[test]
+    fn surf_header_rejects_negative_vertex_count() {
+        use std::io::{Cursor, Write};
+        use byteordered::byteorder::WriteBytesExt;
+
+        let mut buf = Cursor::new(Vec::new());
+        // Magic bytes
+        buf.write_all(&[255, 255, 254]).unwrap();
+        // Info line terminated by \n\n
+        buf.write_all(b"test\n\n").unwrap();
+        // Negative vertex count
+        buf.write_i32::<byteordered::byteorder::BigEndian>(-1).unwrap();
+        // Valid face count
+        buf.write_i32::<byteordered::byteorder::BigEndian>(10).unwrap();
+        buf.set_position(0);
+
+        let hdr = FsSurfaceHeader::from_reader(&mut buf).unwrap();
+        let result = FsSurface::mesh_from_reader(&mut buf, &hdr);
+        assert!(result.is_err());
+        match result {
+            Err(NeuroformatsError::InvalidHeaderValue(msg)) => {
+                assert!(msg.contains("Negative"));
+            }
+            other => panic!("Expected InvalidHeaderValue, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn surf_header_rejects_negative_face_count() {
+        use std::io::{Cursor, Write};
+        use byteordered::byteorder::WriteBytesExt;
+
+        let mut buf = Cursor::new(Vec::new());
+        buf.write_all(&[255, 255, 254]).unwrap();
+        buf.write_all(b"test\n\n").unwrap();
+        buf.write_i32::<byteordered::byteorder::BigEndian>(10).unwrap(); // valid vertices
+        buf.write_i32::<byteordered::byteorder::BigEndian>(-5).unwrap(); // negative faces
+        buf.set_position(0);
+
+        let hdr = FsSurfaceHeader::from_reader(&mut buf).unwrap();
+        let result = FsSurface::mesh_from_reader(&mut buf, &hdr);
+        assert!(result.is_err());
+        match result {
+            Err(NeuroformatsError::InvalidHeaderValue(msg)) => {
+                assert!(msg.contains("Negative"));
+            }
+            other => panic!("Expected InvalidHeaderValue, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn surf_rejects_nan_vertex_coordinates() {
+        use std::io::{Cursor, Write};
+        use byteordered::byteorder::WriteBytesExt;
+
+        let mut buf = Cursor::new(Vec::new());
+        buf.write_all(&[255, 255, 254]).unwrap();
+        buf.write_all(b"test\n\n").unwrap();
+        buf.write_i32::<byteordered::byteorder::BigEndian>(1).unwrap(); // 1 vertex
+        buf.write_i32::<byteordered::byteorder::BigEndian>(0).unwrap(); // 0 faces
+        // Write NaN vertex coordinates
+        buf.write_f32::<byteordered::byteorder::BigEndian>(f32::NAN).unwrap();
+        buf.write_f32::<byteordered::byteorder::BigEndian>(0.0).unwrap();
+        buf.write_f32::<byteordered::byteorder::BigEndian>(0.0).unwrap();
+        buf.set_position(0);
+
+        let hdr = FsSurfaceHeader::from_reader(&mut buf).unwrap();
+        let result = FsSurface::mesh_from_reader(&mut buf, &hdr);
+        assert!(result.is_err());
     }
 }

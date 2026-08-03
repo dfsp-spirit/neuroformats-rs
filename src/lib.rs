@@ -5,6 +5,7 @@
 #[cfg(test)]
 extern crate approx;
 
+pub mod config;
 pub mod error;
 pub mod fs_annot;
 pub mod fs_curv;
@@ -12,6 +13,11 @@ pub mod fs_label;
 pub mod fs_mgh;
 pub mod fs_surface;
 pub mod util;
+
+pub use config::{
+    max_bytes_per_file, max_label_entries, max_string_length, max_vertices, reset_limits_to_defaults,
+    set_max_bytes_per_file, set_max_label_entries, set_max_string_length, set_max_vertices,
+};
 
 pub use fs_annot::{read_annot, FsAnnot, FsAnnotColortable};
 pub use fs_curv::{read_curv, write_curv, FsCurv, FsCurvHeader};

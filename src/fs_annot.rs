@@ -13,6 +13,7 @@ use std::fmt;
 
 use crate::util::read_fixed_length_string;
 use crate::error::{NeuroformatsError, Result};
+use crate::config;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FsAnnotColortable {
@@ -103,9 +104,21 @@ impl FsAnnot {
 
         let num_vertices: i32 = file.read_i32()?;
 
-        let mut vertex_indices : Vec<i32> = Vec::with_capacity(num_vertices as usize);
-        let mut vertex_labels : Vec<i32> = Vec::with_capacity(num_vertices as usize);
-        for _ in 1..=num_vertices {
+        // Validate vertex count.
+        if num_vertices < 0 {
+            return Err(NeuroformatsError::InvalidHeaderValue(format!(
+                "Negative vertex count in annot: {}",
+                num_vertices
+            )));
+        }
+        let num_vertices_usize = num_vertices as usize;
+        if num_vertices_usize > config::max_vertices() {
+            return Err(NeuroformatsError::AllocationTooLarge);
+        }
+
+        let mut vertex_indices : Vec<i32> = Vec::with_capacity(num_vertices_usize);
+        let mut vertex_labels : Vec<i32> = Vec::with_capacity(num_vertices_usize);
+        for _ in 0..num_vertices_usize {
             vertex_indices.push(file.read_i32()?);
             vertex_labels.push(file.read_i32()?);
         }
@@ -165,23 +178,29 @@ impl FsAnnot {
     ///
     /// Note that it can happen that no vertices are assigned to the region, in which case the result vector is empty.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// If the given `region` is not a valid region name for the [`FsAnnot`] struct.
+    /// Returns [`NeuroformatsError::RegionNotFound`] if the given `region` is not a valid region name for this annotation.
     ///
     /// # Examples
     ///
     /// ```no_run
     /// let annot = neuroformats::read_annot("/path/to/subjects_dir/subject1/label/lh.aparc.annot").unwrap();
-    /// annot.region_vertices(String::from("bankssts"));
+    /// let vertices = annot.region_vertices(String::from("bankssts")).unwrap();
     /// ```
-    pub fn region_vertices(&self, region : String) -> Vec<usize> {
-        let region = self.colortable.regions.iter().find(|x| &x.name == &region).expect("No such region in annot.");
-        self.vertex_labels
+    pub fn region_vertices(&self, region: String) -> Result<Vec<usize>> {
+        let region = self
+            .colortable
+            .regions
+            .iter()
+            .find(|x| &x.name == &region)
+            .ok_or_else(|| NeuroformatsError::RegionNotFound(region.clone()))?;
+        Ok(self
+            .vertex_labels
             .iter()
             .enumerate()
             .filter_map(|(idx, vlabel)| (vlabel == &region.label).then_some(idx))
-            .collect()
+            .collect())
     }
 
 
@@ -348,7 +367,7 @@ mod test {
     fn annot_region_vertices_are_computed_correctly() {
         const ANNOT_FILE: &str = "resources/subjects_dir/subject1/label/lh.aparc.annot";
         let annot = read_annot(ANNOT_FILE).unwrap();
-        let region_verts : Vec<usize> = annot.region_vertices(String::from("bankssts"));
+        let region_verts : Vec<usize> = annot.region_vertices(String::from("bankssts")).unwrap();
 
         assert_eq!(1722, region_verts.len());
     }
@@ -380,5 +399,16 @@ mod test {
         assert_eq!(col_rgb.len(), annot.vertex_indices.len() * 3);
     }
 
-
+    #[test]
+    fn annot_region_vertices_returns_error_for_unknown_region() {
+        let annot = read_annot("resources/subjects_dir/subject1/label/lh.aparc.annot").unwrap();
+        let result = annot.region_vertices(String::from("nonexistent_region"));
+        assert!(result.is_err());
+        match result {
+            Err(NeuroformatsError::RegionNotFound(name)) => {
+                assert_eq!(name, "nonexistent_region");
+            }
+            other => panic!("Expected RegionNotFound, got {:?}", other),
+        }
+    }
 }

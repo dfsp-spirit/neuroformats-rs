@@ -13,6 +13,7 @@ use std::fmt;
 
 use crate::error::{NeuroformatsError, Result};
 use crate::util::vec32minmax;
+use crate::config;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FsLabel {
@@ -21,7 +22,7 @@ pub struct FsLabel {
 
 impl FsLabel {
 
-    /// Determine whether this is a binary label. 
+    /// Determine whether this is a binary label.
     ///
     /// A binary label assigns the same value (typically `0.0`) to all its vertices.
     /// Such a label is typically used to define a region of some sort, e.g., a single brain region extracted from a brain
@@ -76,8 +77,8 @@ impl FsLabel {
     }
 }
 
-impl fmt::Display for FsLabel {    
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {        
+impl fmt::Display for FsLabel {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let (min, max) = vec32minmax(self.vertexes.iter().map(|v| v.value), false);
         write!(f, "Label for {} vertices/voxels, with label values in range {} to {}.", self.vertexes.len(), min, max)
     }
@@ -97,12 +98,54 @@ impl std::str::FromStr for FsLabelVertex {
     type Err = NeuroformatsError;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         let mut iter = s.split_whitespace();
-        let index = iter.next().unwrap().parse::<i32>().expect("Expected vertex index of type i32.");
-        let coord1 = iter.next().unwrap().parse::<f32>().expect("Expected coord1 of type f32.");
-        let coord2 = iter.next().unwrap().parse::<f32>().expect("Expected coord2 of type f32.");
-        let coord3 = iter.next().unwrap().parse::<f32>().expect("Expected coord3 of type f32.");
-        let value = iter.next().unwrap().parse::<f32>().expect("Expected vertex value of type f32.");
-        Ok(FsLabelVertex{ index, coord1, coord2, coord3, value })
+
+        let index_str = iter
+            .next()
+            .ok_or_else(|| NeuroformatsError::InvalidVertexValue("Missing vertex index".to_string()))?;
+        let index = index_str
+            .parse::<i32>()
+            .map_err(|_| NeuroformatsError::InvalidVertexValue(format!("Invalid vertex index: '{}'", index_str)))?;
+
+        let parse_f32 = |field: &str, label: &str| -> std::result::Result<f32, NeuroformatsError> {
+            let val = field
+                .parse::<f32>()
+                .map_err(|_| NeuroformatsError::InvalidVertexValue(format!("Invalid {} value: '{}'", label, field)))?;
+            if !val.is_finite() {
+                return Err(NeuroformatsError::InvalidVertexValue(format!(
+                    "{} is not finite (value: {})",
+                    label, val
+                )));
+            }
+            Ok(val)
+        };
+
+        let coord1_str = iter
+            .next()
+            .ok_or_else(|| NeuroformatsError::InvalidVertexValue("Missing coord1".to_string()))?;
+        let coord1 = parse_f32(coord1_str, "coord1")?;
+
+        let coord2_str = iter
+            .next()
+            .ok_or_else(|| NeuroformatsError::InvalidVertexValue("Missing coord2".to_string()))?;
+        let coord2 = parse_f32(coord2_str, "coord2")?;
+
+        let coord3_str = iter
+            .next()
+            .ok_or_else(|| NeuroformatsError::InvalidVertexValue("Missing coord3".to_string()))?;
+        let coord3 = parse_f32(coord3_str, "coord3")?;
+
+        let value_str = iter
+            .next()
+            .ok_or_else(|| NeuroformatsError::InvalidVertexValue("Missing vertex value".to_string()))?;
+        let value = parse_f32(value_str, "vertex value")?;
+
+        Ok(FsLabelVertex {
+            index,
+            coord1,
+            coord2,
+            coord3,
+            value,
+        })
     }
 }
 
@@ -127,18 +170,36 @@ pub fn read_label<P: AsRef<Path>>(path: P) -> Result<FsLabel> {
     // We ignore the first line at index 0: it is a comment line.
     let _comment_line = lines.next().transpose()?;
     // The line 1 (after comment) is the header
-    let hdr_num_entries: i32 = lines.next().transpose()?.and_then(|header| header.parse::<i32>().ok()).expect("Could not parse label header line.");
-    let mut vertexes = Vec::with_capacity(hdr_num_entries as usize);
+    let hdr_num_entries_str = lines
+        .next()
+        .transpose()?
+        .ok_or_else(|| NeuroformatsError::InvalidFsLabelFormat)?;
+    let hdr_num_entries: i32 = hdr_num_entries_str
+        .parse::<i32>()
+        .map_err(|_| NeuroformatsError::InvalidFsLabelFormat)?;
+
+    if hdr_num_entries < 0 {
+        return Err(NeuroformatsError::InvalidHeaderValue(format!(
+            "Negative label entry count: {}",
+            hdr_num_entries
+        )));
+    }
+    let num_entries = hdr_num_entries as usize;
+    if num_entries > config::max_label_entries() {
+        return Err(NeuroformatsError::AllocationTooLarge);
+    }
+
+    let mut vertexes = Vec::with_capacity(num_entries);
     for line in lines {
         let line = line?;
         let vertex = line.parse()?;
         vertexes.push(vertex);
     }
 
-    if hdr_num_entries as usize != vertexes.len() {
+    if num_entries != vertexes.len() {
         Err(NeuroformatsError::InvalidFsLabelFormat)
     } else {
-        Ok(FsLabel{ vertexes })
+        Ok(FsLabel { vertexes })
     }
 }
 
@@ -165,7 +226,7 @@ pub fn write_label<P: AsRef<Path> + Copy>(path: P, label : &FsLabel) -> std::io:
 
 
 #[cfg(test)]
-mod test { 
+mod test {
     use super::*;
     use tempfile::{tempdir};
 
@@ -209,4 +270,49 @@ mod test {
         assert_eq!(expected_vertex_count, label_re.vertexes.len());
     }
 
+    #[test]
+    fn label_vertex_from_str_rejects_nan_coord() {
+        let line = "1 NaN 2.0 3.0 0.5";
+        let result: std::result::Result<FsLabelVertex, NeuroformatsError> = line.parse();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn label_vertex_from_str_rejects_inf_coord() {
+        let line = "1 inf 2.0 3.0 0.5";
+        let result: std::result::Result<FsLabelVertex, NeuroformatsError> = line.parse();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn label_vertex_from_str_rejects_nan_value() {
+        let line = "1 1.0 2.0 3.0 NaN";
+        let result: std::result::Result<FsLabelVertex, NeuroformatsError> = line.parse();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn label_vertex_from_str_rejects_invalid_index() {
+        let line = "not_a_number 1.0 2.0 3.0 0.5";
+        let result: std::result::Result<FsLabelVertex, NeuroformatsError> = line.parse();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn label_vertex_from_str_rejects_missing_fields() {
+        let line = "1 1.0 2.0";
+        let result: std::result::Result<FsLabelVertex, NeuroformatsError> = line.parse();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn label_vertex_from_str_parses_valid_line() {
+        let line = "42 1.0 2.5 3.0 0.75";
+        let vertex: FsLabelVertex = line.parse().unwrap();
+        assert_eq!(vertex.index, 42);
+        assert!((vertex.coord1 - 1.0).abs() < 1e-10);
+        assert!((vertex.coord2 - 2.5).abs() < 1e-10);
+        assert!((vertex.coord3 - 3.0).abs() < 1e-10);
+        assert!((vertex.value - 0.75).abs() < 1e-10);
+    }
 }

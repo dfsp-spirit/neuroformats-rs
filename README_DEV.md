@@ -29,3 +29,5 @@ And when you are satisfied with the result:
 ```shell
 cargo publish
 ```
+
+* Tag the commit with git

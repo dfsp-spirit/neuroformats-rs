@@ -3,7 +3,7 @@
 use std::io::BufRead;
 use std::path::Path;
 
-use crate::error::Result;
+use crate::error::{NeuroformatsError, Result};
 
 use byteordered::byteorder::ReadBytesExt;
 
@@ -87,10 +87,15 @@ where
 ///
 /// A FreeSurfer-style variable length string is a string terminated by two `\x0A`, or 'Unix line feed' ASCII characters.
 ///
+/// # Arguments
+/// * `input` - A buffered reader positioned at the start of the string.
+/// * `max_len` - Maximum number of characters to read before returning an error.
+///
 /// # Warnings
 ///
-/// * Terrible things will happen if the input does not contain a sequence of two consecutive `\x0A` chars.
-pub fn read_fs_variable_length_string<S>(input: &mut S) -> Result<String>
+/// * Terrible things will happen if the input does not contain a sequence of two consecutive `\x0A` chars within `max_len` bytes.
+/// * Returns [`NeuroformatsError::StringTooLong`] if the string exceeds `max_len` before finding the terminator.
+pub fn read_fs_variable_length_string<S>(input: &mut S, max_len: usize) -> Result<String>
 where
     S: BufRead,
 {
@@ -101,6 +106,9 @@ where
         last_char = cur_char;
         cur_char = input.read_u8()? as char;
         info_line.push(cur_char);
+        if info_line.len() > max_len {
+            return Err(NeuroformatsError::StringTooLong);
+        }
         if last_char == '\x0A' && cur_char == '\x0A' {
             break;
         }
@@ -182,6 +190,80 @@ where
     (min, max)
 }
 
+/// Safely compute the product of i32 dimensions, checking for overflow and negative values.
+///
+/// Returns the total number of elements as `usize`, or an error if any dimension is negative
+/// or if the multiplication overflows.
+///
+/// # Arguments
+/// * `dims` - Slice of i32 dimension values from a file header.
+///
+/// # Errors
+/// * `InvalidHeaderValue` if any dimension is negative.
+/// * `IntegerOverflow` if the product exceeds `usize::MAX`.
+///
+/// # Examples
+///
+/// ```
+/// use neuroformats::util::checked_mul_dims;
+/// assert_eq!(checked_mul_dims(&[256, 256, 256, 1]).unwrap(), 16_777_216);
+/// ```
+pub fn checked_mul_dims(dims: &[i32]) -> Result<usize> {
+    let mut total: usize = 1;
+    for &dim in dims {
+        if dim < 0 {
+            return Err(NeuroformatsError::InvalidHeaderValue(format!(
+                "Negative dimension value: {}",
+                dim
+            )));
+        }
+        total = total
+            .checked_mul(dim as usize)
+            .ok_or(NeuroformatsError::IntegerOverflow)?;
+    }
+    Ok(total)
+}
+
+/// Validate that all values in a float slice are finite (not NaN, not Inf).
+///
+/// # Arguments
+/// * `values` - Slice of f32 values to validate.
+/// * `field_name` - Human-readable field name for error messages.
+///
+/// # Errors
+/// * `InvalidHeaderValue` if any value is NaN or infinite.
+pub fn validate_finite_f32_slice(values: &[f32], field_name: &str) -> Result<()> {
+    for (i, &v) in values.iter().enumerate() {
+        if !v.is_finite() {
+            return Err(NeuroformatsError::InvalidHeaderValue(format!(
+                "Field '{}' at index {} is not finite (value: {})",
+                field_name, i, v
+            )));
+        }
+    }
+    Ok(())
+}
+
+/// Validate that a slice of f32 vertex values contains only finite values.
+///
+/// # Arguments
+/// * `values` - Slice of f32 values to validate.
+/// * `label` - Human-readable label for error messages.
+///
+/// # Errors
+/// * `InvalidVertexValue` if any value is NaN or infinite.
+pub fn validate_finite_vertex_values(values: &[f32], label: &str) -> Result<()> {
+    for (i, &v) in values.iter().enumerate() {
+        if !v.is_finite() {
+            return Err(NeuroformatsError::InvalidVertexValue(format!(
+                "{} at index {} is not finite (value: {})",
+                label, i, v
+            )));
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -216,7 +298,7 @@ mod test {
         c.seek(SeekFrom::Start(0)).unwrap();
 
         // Re-read the data.
-        let s = read_fs_variable_length_string(&mut c).unwrap();
+        let s = read_fs_variable_length_string(&mut c, 1024).unwrap();
         let mut out = Vec::new();
         c.read_to_end(&mut out).unwrap();
 
@@ -276,5 +358,83 @@ mod test {
         let max_val: f32 = 1.0;
         let colors: Vec<u8> = values_to_colors(&values, min_val, max_val);
         assert_eq!(colors, vec![68, 1, 84, 38, 130, 142, 254, 232, 37]);
+    }
+
+    #[test]
+    fn checked_mul_dims_rejects_negative_values() {
+        let result = checked_mul_dims(&[10, -1, 10]);
+        assert!(result.is_err());
+        match result {
+            Err(NeuroformatsError::InvalidHeaderValue(msg)) => {
+                assert!(msg.contains("Negative"));
+            }
+            _ => panic!("Expected InvalidHeaderValue error"),
+        }
+    }
+
+    #[test]
+    fn checked_mul_dims_detects_overflow() {
+        // Product of multiple i32::MAX values overflows usize.
+        let result = checked_mul_dims(&[i32::MAX, i32::MAX, i32::MAX]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn checked_mul_dims_works_for_valid_input() {
+        assert_eq!(checked_mul_dims(&[256, 256, 256, 1]).unwrap(), 16_777_216);
+        assert_eq!(checked_mul_dims(&[1]).unwrap(), 1);
+        assert_eq!(checked_mul_dims(&[0, 100]).unwrap(), 0);
+    }
+
+    #[test]
+    fn validate_finite_f32_slice_rejects_nan() {
+        let values = [1.0_f32, f32::NAN, 3.0];
+        let result = validate_finite_f32_slice(&values, "test_field");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_finite_f32_slice_rejects_inf() {
+        let values = [1.0_f32, f32::INFINITY, 3.0];
+        let result = validate_finite_f32_slice(&values, "test_field");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_finite_f32_slice_rejects_neg_inf() {
+        let values = [f32::NEG_INFINITY, 0.0];
+        let result = validate_finite_f32_slice(&values, "test_field");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_finite_f32_slice_accepts_valid_values() {
+        let values = [1.0_f32, -2.5, 0.0, 3.14];
+        assert!(validate_finite_f32_slice(&values, "test_field").is_ok());
+    }
+
+    #[test]
+    fn validate_finite_vertex_values_rejects_nan() {
+        let values = [0.0_f32, f32::NAN, 1.0];
+        let result = validate_finite_vertex_values(&values, "vertex");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn variable_length_string_exceeding_max_is_rejected() {
+        use std::io::{Cursor, Seek, Write};
+
+        // Create a string that is too long (no terminator within max_len)
+        let mut c = Cursor::new(Vec::<u8>::new());
+        let long_string = vec![b'A'; 200];
+        c.write(&long_string).unwrap();
+        c.seek(std::io::SeekFrom::Start(0)).unwrap();
+
+        let result = read_fs_variable_length_string(&mut c, 100);
+        assert!(result.is_err());
+        match result {
+            Err(NeuroformatsError::StringTooLong) => {} // expected
+            other => panic!("Expected StringTooLong, got {:?}", other),
+        }
     }
 }

@@ -12,8 +12,9 @@ use std::io::{BufReader, BufRead, BufWriter};
 use std::path::{Path};
 use std::fmt;
 
-use crate::util::{is_gz_file, vec32minmax};
+use crate::util::{is_gz_file, vec32minmax, validate_finite_vertex_values};
 use crate::error::{NeuroformatsError, Result};
+use crate::config;
 
 
 pub const CURV_MAGIC_CODE_U8: u8 = 255;
@@ -39,7 +40,7 @@ impl Default for FsCurvHeader {
 }
 
 impl FsCurvHeader {
-    
+
     /// Read a Curv header from a file.
     /// If the file's name ends with ".gz", the file is assumed to need GZip decoding. This is not typically the case
     /// for FreeSurfer Curv files, but very handy (and it helps us to reduce the size of our test data).
@@ -62,13 +63,13 @@ impl FsCurvHeader {
         S: BufRead,
     {
         let mut hdr = FsCurvHeader::default();
-    
+
         let mut input = ByteOrdered::be(input);
 
         for v in &mut hdr.curv_magic {
             *v = input.read_u8()?;
         }
-    
+
         hdr.num_vertices = input.read_i32()?;
         hdr.num_faces = input.read_i32()?;
         hdr.num_values_per_vertex = input.read_i32()?;
@@ -87,12 +88,12 @@ impl FsCurvHeader {
 #[derive(Debug, PartialEq, Clone)]
 pub struct FsCurv {
     pub header: FsCurvHeader,
-    pub data: Vec<f32>, 
+    pub data: Vec<f32>,
 }
 
 
-impl fmt::Display for FsCurv {    
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {        
+impl fmt::Display for FsCurv {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let (min, max) = vec32minmax(self.data.iter().copied(), false);
         write!(f, "Per-vertex data for {} vertices, with values in range {} to {}.", self.data.len(), min, max)
     }
@@ -104,7 +105,7 @@ impl fmt::Display for FsCurv {
 /// A curv file assigns a single scalar value to each vertex of a brain mesh. These values can represent
 /// anything, but the files are typically used to store morphological descriptors like the cortical thickness
 /// at each point of the brain surface, or statistical results like t value maps. See [`crate::read_surf`] to load
-/// the corresponding mesh file. 
+/// the corresponding mesh file.
 ///
 /// # Examples
 ///
@@ -119,8 +120,8 @@ pub fn read_curv<P: AsRef<Path> + Copy>(path: P) -> Result<FsCurv> {
 /// Write an FsCurv struct to a file in FreeSurfer curv format.
 pub fn write_curv<P: AsRef<Path> + Copy>(path: P, curv : &FsCurv) {
     let f = File::create(path).expect("Unable to create curv file");
-    let f = BufWriter::new(f);  
-    let mut f  =  ByteOrdered::runtime(f, Endianness::Big); 
+    let f = BufWriter::new(f);
+    let mut f  =  ByteOrdered::runtime(f, Endianness::Big);
     f.write_u8(CURV_MAGIC_CODE_U8).unwrap();
     f.write_u8(CURV_MAGIC_CODE_U8).unwrap();
     f.write_u8(CURV_MAGIC_CODE_U8).unwrap();
@@ -146,12 +147,12 @@ impl FsCurv {
         let file = BufReader::new(File::open(path)?);
 
         let data: Vec<f32> = if gz {
-            FsCurv::curv_data_from_reader(BufReader::new(GzDecoder::new(file)), &hdr)
+            FsCurv::curv_data_from_reader(BufReader::new(GzDecoder::new(file)), &hdr)?
         } else {
-            FsCurv::curv_data_from_reader(file, &hdr)
+            FsCurv::curv_data_from_reader(file, &hdr)?
         };
 
-        let curv = FsCurv { 
+        let curv = FsCurv {
             header : hdr,
             data: data,
         };
@@ -160,32 +161,54 @@ impl FsCurv {
     }
 
 
-    pub fn curv_data_from_reader<S>(input: S, hdr: &FsCurvHeader) -> Vec<f32>
+    pub fn curv_data_from_reader<S>(input: S, hdr: &FsCurvHeader) -> Result<Vec<f32>>
     where
         S: BufRead,
     {
-    
+        // Validate vertex count.
+        if hdr.num_vertices < 0 {
+            return Err(NeuroformatsError::InvalidHeaderValue(format!(
+                "Negative vertex count: {}",
+                hdr.num_vertices
+            )));
+        }
+        let num_vertices = hdr.num_vertices as usize;
+        if num_vertices > config::max_vertices() {
+            return Err(NeuroformatsError::AllocationTooLarge);
+        }
+
+        let data_bytes = num_vertices
+            .checked_mul(4) // f32 = 4 bytes
+            .ok_or(NeuroformatsError::IntegerOverflow)?;
+        if data_bytes > config::max_bytes_per_file() {
+            return Err(NeuroformatsError::AllocationTooLarge);
+        }
+
         let mut input = ByteOrdered::be(input);
 
         let hdr_size = 15;
-        
+
         // This is only read because we cannot seek in a GZ stream.
-        let mut hdr_data : Vec<u8> = Vec::with_capacity(hdr_size as usize);
-        for _ in 1..=hdr_size {
-            hdr_data.push(input.read_u8().unwrap());
+        let mut hdr_data: Vec<u8> = Vec::with_capacity(hdr_size as usize);
+        for _ in 0..hdr_size {
+            hdr_data.push(input.read_u8().map_err(|e| NeuroformatsError::Io(e))?);
         }
 
-        let mut data : Vec<f32> = Vec::with_capacity(hdr.num_vertices as usize);
-        for _ in 1..=hdr.num_vertices {
-            data.push(input.read_f32().unwrap());
+        let mut data: Vec<f32> = Vec::with_capacity(num_vertices);
+        for _ in 0..num_vertices {
+            data.push(input.read_f32().map_err(|e| NeuroformatsError::Io(e))?);
         }
-        data
+
+        // Validate data contains no NaN/Inf values.
+        validate_finite_vertex_values(&data, "curv value")?;
+
+        Ok(data)
     }
 }
 
 
 #[cfg(test)]
-mod test { 
+mod test {
     use super::*;
     use approx::assert_abs_diff_eq;
     use tempfile::{tempdir};
@@ -198,7 +221,7 @@ mod test {
         assert_eq!(149244, curv.header.num_vertices);
         assert_eq!(298484, curv.header.num_faces);
         assert_eq!(1, curv.header.num_values_per_vertex);
-        assert_eq!(149244, curv.data.len());        
+        assert_eq!(149244, curv.data.len());
 
         use crate::util::vec32minmax;
         let (min, max) = vec32minmax(curv.data.into_iter(), false);
@@ -222,11 +245,68 @@ mod test {
         assert_eq!(149244, curv_re.header.num_vertices);
         assert_eq!(298484, curv_re.header.num_faces);
         assert_eq!(1, curv_re.header.num_values_per_vertex);
-        assert_eq!(149244, curv_re.data.len());        
+        assert_eq!(149244, curv_re.data.len());
 
         use crate::util::vec32minmax;
         let (min, max) = vec32minmax(curv_re.data.into_iter(), false);
         assert_abs_diff_eq!(0.0, min, epsilon = 1e-10);
         assert_abs_diff_eq!(5.0, max, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn curv_rejects_negative_vertex_count() {
+        use std::io::{Cursor, Write};
+        use byteordered::byteorder::WriteBytesExt;
+
+        let mut buf = Cursor::new(Vec::new());
+        // Magic bytes
+        buf.write_all(&[255, 255, 255]).unwrap();
+        // Negative vertex count
+        buf.write_i32::<byteordered::byteorder::BigEndian>(-1).unwrap();
+        buf.write_i32::<byteordered::byteorder::BigEndian>(10).unwrap(); // faces
+        buf.write_i32::<byteordered::byteorder::BigEndian>(1).unwrap(); // values per vertex
+        buf.set_position(0);
+
+        let hdr = FsCurvHeader::from_reader(buf).unwrap();
+        // Re-create buf since from_reader consumed it
+        let mut buf2 = Cursor::new(Vec::new());
+        buf2.write_all(&[255, 255, 255]).unwrap();
+        buf2.write_i32::<byteordered::byteorder::BigEndian>(-1).unwrap();
+        buf2.write_i32::<byteordered::byteorder::BigEndian>(10).unwrap();
+        buf2.write_i32::<byteordered::byteorder::BigEndian>(1).unwrap();
+        buf2.set_position(0);
+
+        let result = FsCurv::curv_data_from_reader(buf2, &hdr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn curv_rejects_nan_data_values() {
+        use std::io::{Cursor, Write};
+        use byteordered::byteorder::WriteBytesExt;
+
+        // Create header with 1 vertex
+        let mut buf = Cursor::new(Vec::new());
+        buf.write_all(&[255, 255, 255]).unwrap();
+        buf.write_i32::<byteordered::byteorder::BigEndian>(1).unwrap(); // 1 vertex
+        buf.write_i32::<byteordered::byteorder::BigEndian>(0).unwrap(); // faces
+        buf.write_i32::<byteordered::byteorder::BigEndian>(1).unwrap(); // values per vertex
+        // Write header filler (15 bytes total header, we wrote 3+4+4+4=15, no filler needed)
+        // Write NaN data
+        buf.write_f32::<byteordered::byteorder::BigEndian>(f32::NAN).unwrap();
+        buf.set_position(0);
+
+        let hdr = FsCurvHeader::from_reader(buf).unwrap();
+        // Re-create with same data
+        let mut buf2 = Cursor::new(Vec::new());
+        buf2.write_all(&[255, 255, 255]).unwrap();
+        buf2.write_i32::<byteordered::byteorder::BigEndian>(1).unwrap();
+        buf2.write_i32::<byteordered::byteorder::BigEndian>(0).unwrap();
+        buf2.write_i32::<byteordered::byteorder::BigEndian>(1).unwrap();
+        buf2.write_f32::<byteordered::byteorder::BigEndian>(f32::NAN).unwrap();
+        buf2.set_position(0);
+
+        let result = FsCurv::curv_data_from_reader(buf2, &hdr);
+        assert!(result.is_err());
     }
 }

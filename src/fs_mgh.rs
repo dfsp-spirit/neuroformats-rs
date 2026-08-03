@@ -11,6 +11,8 @@ use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
 
 use crate::error::{NeuroformatsError, Result};
+use crate::util::{checked_mul_dims, validate_finite_f32_slice};
+use crate::config;
 
 const MGH_VERSION_CODE: i32 = 1;
 
@@ -130,6 +132,10 @@ impl FsMghHeader {
             for idx in 0..3 {
                 hdr.p_xyz_c[idx] = input.read_f32()?;
             }
+            // Validate that RAS header fields contain no NaN or Inf values.
+            validate_finite_f32_slice(&hdr.delta, "delta")?;
+            validate_finite_f32_slice(&hdr.mdc_raw, "mdc_raw")?;
+            validate_finite_f32_slice(&hdr.p_xyz_c, "p_xyz_c")?;
         }
         Ok(hdr)
     }
@@ -230,6 +236,10 @@ impl FsMgh {
     where
         S: BufRead,
     {
+        // Validate dimensions and compute total elements with overflow check.
+        let total_elements =
+            checked_mul_dims(&[hdr.dim1len, hdr.dim2len, hdr.dim3len, hdr.dim4len])?;
+
         let vol_dim = Dim([
             hdr.dim1len as usize,
             hdr.dim2len as usize,
@@ -237,10 +247,25 @@ impl FsMgh {
             hdr.dim4len as usize,
         ]);
 
+        // Compute byte size based on data type and check against limit.
+        let bytes_per_element: usize = match hdr.dtype {
+            MRI_UCHAR => 1,
+            MRI_INT => 4,
+            MRI_FLOAT => 4,
+            MRI_SHORT => 2,
+            _ => return Err(NeuroformatsError::UnsupportedMriDataTypeInMgh),
+        };
+        let total_bytes = total_elements
+            .checked_mul(bytes_per_element)
+            .ok_or(NeuroformatsError::IntegerOverflow)?;
+        if total_bytes > config::max_bytes_per_file() {
+            return Err(NeuroformatsError::AllocationTooLarge);
+        }
+
         let mut file = ByteOrdered::be(file);
 
         // Skip or read to end of header.
-        for _ in 1..=MGH_DATA_START {
+        for _ in 0..MGH_DATA_START {
             let _discarded = file.read_u8()?;
         }
 
@@ -249,32 +274,44 @@ impl FsMgh {
         let mut data_mri_float = None;
         let mut data_mri_short = None;
 
-        let num_voxels: usize = (hdr.dim1len * hdr.dim2len * hdr.dim3len * hdr.dim4len) as usize;
+        let num_voxels = total_elements;
 
         if hdr.dtype == MRI_UCHAR {
             let mut mgh_data: Vec<u8> = Vec::with_capacity(num_voxels);
-            for _ in 1..=num_voxels {
+            for _ in 0..num_voxels {
                 mgh_data.push(file.read_u8()?);
             }
-            data_mri_uchar = Some(Array::from_shape_vec(vol_dim, mgh_data).unwrap());
+            data_mri_uchar = Some(
+                Array::from_shape_vec(vol_dim, mgh_data)
+                    .map_err(|e| NeuroformatsError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?,
+            );
         } else if hdr.dtype == MRI_INT {
             let mut mgh_data: Vec<i32> = Vec::with_capacity(num_voxels);
-            for _ in 1..=num_voxels {
+            for _ in 0..num_voxels {
                 mgh_data.push(file.read_i32()?);
             }
-            data_mri_int = Some(Array::from_shape_vec(vol_dim, mgh_data).unwrap());
+            data_mri_int = Some(
+                Array::from_shape_vec(vol_dim, mgh_data)
+                    .map_err(|e| NeuroformatsError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?,
+            );
         } else if hdr.dtype == MRI_FLOAT {
             let mut mgh_data: Vec<f32> = Vec::with_capacity(num_voxels);
-            for _ in 1..=num_voxels {
+            for _ in 0..num_voxels {
                 mgh_data.push(file.read_f32()?);
             }
-            data_mri_float = Some(Array::from_shape_vec(vol_dim, mgh_data).unwrap());
+            data_mri_float = Some(
+                Array::from_shape_vec(vol_dim, mgh_data)
+                    .map_err(|e| NeuroformatsError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?,
+            );
         } else if hdr.dtype == MRI_SHORT {
             let mut mgh_data: Vec<i16> = Vec::with_capacity(num_voxels);
-            for _ in 1..=num_voxels {
+            for _ in 0..num_voxels {
                 mgh_data.push(file.read_i16()?);
             }
-            data_mri_short = Some(Array::from_shape_vec(vol_dim, mgh_data).unwrap());
+            data_mri_short = Some(
+                Array::from_shape_vec(vol_dim, mgh_data)
+                    .map_err(|e| NeuroformatsError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?,
+            );
         } else {
             return Err(NeuroformatsError::UnsupportedMriDataTypeInMgh);
         }
@@ -673,5 +710,122 @@ mod test {
         assert_eq!(data[[0, 0, 0, 0]], 0);
 
         assert_eq!(data.mapv(|a| a as i32).sum(), 121035479);
+    }
+
+    #[test]
+    fn mgh_header_rejects_negative_dimension() {
+        use std::io::Cursor;
+        use byteordered::byteorder::WriteBytesExt;
+
+        // Build a malicious MGH header with a negative dim1len.
+        let mut buf = Cursor::new(Vec::new());
+        buf.write_i32::<byteordered::byteorder::BigEndian>(1).unwrap(); // version
+        buf.write_i32::<byteordered::byteorder::BigEndian>(-1).unwrap(); // dim1len = -1 (malicious)
+        buf.write_i32::<byteordered::byteorder::BigEndian>(256).unwrap(); // dim2len
+        buf.write_i32::<byteordered::byteorder::BigEndian>(256).unwrap(); // dim3len
+        buf.write_i32::<byteordered::byteorder::BigEndian>(1).unwrap(); // dim4len
+        // Fill remaining header bytes to reach MGH_DATA_START
+        for _ in 0..(MGH_DATA_START - 5 * 4) {
+            buf.write_u8(0).unwrap();
+        }
+
+        buf.set_position(0);
+        let hdr = FsMghHeader::from_reader(&mut buf).unwrap();
+        let result = FsMgh::data_from_reader(&mut buf, &hdr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn mgh_header_rejects_overflow_dimensions() {
+        use std::io::Cursor;
+        use byteordered::byteorder::WriteBytesExt;
+
+        // Build a malicious MGH header with dimensions that overflow.
+        let mut buf = Cursor::new(Vec::new());
+        buf.write_i32::<byteordered::byteorder::BigEndian>(1).unwrap(); // version
+        buf.write_i32::<byteordered::byteorder::BigEndian>(i32::MAX).unwrap(); // dim1len = huge
+        buf.write_i32::<byteordered::byteorder::BigEndian>(2).unwrap(); // dim2len
+        buf.write_i32::<byteordered::byteorder::BigEndian>(2).unwrap(); // dim3len
+        buf.write_i32::<byteordered::byteorder::BigEndian>(2).unwrap(); // dim4len
+        buf.write_i32::<byteordered::byteorder::BigEndian>(MRI_UCHAR).unwrap(); // dtype
+        buf.write_i32::<byteordered::byteorder::BigEndian>(0).unwrap(); // dof
+        buf.write_i16::<byteordered::byteorder::BigEndian>(-1).unwrap(); // is_ras_good
+        for _ in 0..(MGH_DATA_START - 7 * 4 - 2) {
+            buf.write_u8(0).unwrap();
+        }
+
+        buf.set_position(0);
+        let hdr = FsMghHeader::from_reader(&mut buf).unwrap();
+        let result = FsMgh::data_from_reader(&mut buf, &hdr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn mgh_header_rejects_nan_in_ras_fields() {
+        use std::io::Cursor;
+        use byteordered::byteorder::WriteBytesExt;
+
+        // Build an MGH header with NaN in delta.
+        let mut buf = Cursor::new(Vec::new());
+        buf.write_i32::<byteordered::byteorder::BigEndian>(1).unwrap(); // version
+        buf.write_i32::<byteordered::byteorder::BigEndian>(1).unwrap(); // dim1len
+        buf.write_i32::<byteordered::byteorder::BigEndian>(1).unwrap(); // dim2len
+        buf.write_i32::<byteordered::byteorder::BigEndian>(1).unwrap(); // dim3len
+        buf.write_i32::<byteordered::byteorder::BigEndian>(1).unwrap(); // dim4len
+        buf.write_i32::<byteordered::byteorder::BigEndian>(MRI_UCHAR).unwrap(); // dtype
+        buf.write_i32::<byteordered::byteorder::BigEndian>(0).unwrap(); // dof
+        buf.write_i16::<byteordered::byteorder::BigEndian>(1).unwrap(); // is_ras_good = 1
+        // Write NaN for delta
+        buf.write_f32::<byteordered::byteorder::BigEndian>(f32::NAN).unwrap();
+        buf.write_f32::<byteordered::byteorder::BigEndian>(1.0).unwrap();
+        buf.write_f32::<byteordered::byteorder::BigEndian>(1.0).unwrap();
+        // Fill remaining mdc and p_xyz_c with zeros
+        for _ in 0..12 {
+            buf.write_f32::<byteordered::byteorder::BigEndian>(0.0).unwrap();
+        }
+        for _ in 0..(MGH_DATA_START - 7 * 4 - 2 - 15 * 4) {
+            buf.write_u8(0).unwrap();
+        }
+
+        buf.set_position(0);
+        let result = FsMghHeader::from_reader(&mut buf);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn mgh_header_rejects_inf_in_ras_fields() {
+        use std::io::Cursor;
+        use byteordered::byteorder::WriteBytesExt;
+
+        // Build an MGH header with Inf in mdc_raw.
+        let mut buf = Cursor::new(Vec::new());
+        buf.write_i32::<byteordered::byteorder::BigEndian>(1).unwrap(); // version
+        buf.write_i32::<byteordered::byteorder::BigEndian>(1).unwrap(); // dim1len
+        buf.write_i32::<byteordered::byteorder::BigEndian>(1).unwrap(); // dim2len
+        buf.write_i32::<byteordered::byteorder::BigEndian>(1).unwrap(); // dim3len
+        buf.write_i32::<byteordered::byteorder::BigEndian>(1).unwrap(); // dim4len
+        buf.write_i32::<byteordered::byteorder::BigEndian>(MRI_UCHAR).unwrap(); // dtype
+        buf.write_i32::<byteordered::byteorder::BigEndian>(0).unwrap(); // dof
+        buf.write_i16::<byteordered::byteorder::BigEndian>(1).unwrap(); // is_ras_good = 1
+        // Write valid delta
+        for _ in 0..3 {
+            buf.write_f32::<byteordered::byteorder::BigEndian>(1.0).unwrap();
+        }
+        // Write Inf in mdc_raw[0]
+        buf.write_f32::<byteordered::byteorder::BigEndian>(f32::INFINITY).unwrap();
+        for _ in 0..8 {
+            buf.write_f32::<byteordered::byteorder::BigEndian>(0.0).unwrap();
+        }
+        // p_xyz_c
+        for _ in 0..3 {
+            buf.write_f32::<byteordered::byteorder::BigEndian>(0.0).unwrap();
+        }
+        for _ in 0..(MGH_DATA_START - 7 * 4 - 2 - 15 * 4) {
+            buf.write_u8(0).unwrap();
+        }
+
+        buf.set_position(0);
+        let result = FsMghHeader::from_reader(&mut buf);
+        assert!(result.is_err());
     }
 }

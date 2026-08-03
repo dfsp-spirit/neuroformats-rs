@@ -60,7 +60,7 @@ fn main() {
     let lh_thickness = neuroformats::read_curv(lh_thickness_file).unwrap();
 
     // Extract the vertices in the bankssts region (the vertex indices, to be precise).
-    let region_verts_bankssts: Vec<usize> = lh_annot.region_vertices(String::from("bankssts"));
+    let region_verts_bankssts: Vec<usize> = lh_annot.region_vertices(String::from("bankssts")).unwrap();
     let bankssts_thickness_values: Vec<f32> = region_verts_bankssts
         .iter()
         .map(|&i| lh_thickness.data[i])
