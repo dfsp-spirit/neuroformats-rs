@@ -36,8 +36,13 @@ neuroformats = "0.3.0"
 * Read and write FreeSurfer per-vertex data in curv format (like `subject/surf/lh.thickness`): functions `neuroformats::read_curv` and `write_curv`
 * Read and write brain meshes in FreeSurfer binary mesh format (like `subject/surf/lh.white`): `read_surf` and `write_surf`
 * Read and write FreeSurfer label files (like `subject/label/lh.cortex.label`): `read_label` and `write_label`
-* Read FreeSurfer brain surface parcellations (a.k.a. brain atlas, like `subject/label/lh.aparc.annot`): `read_annot`
+* Read and write FreeSurfer brain surface parcellations (a.k.a. brain atlas, like `subject/label/lh.aparc.annot`): `read_annot` and `write_annot`
 * Read and write FreeSurfer brain volumes and other data from MGH and MGZ files: `read_mgh` and `write_mgh`
+* Read and write FreeSurfer per-vertex weight files (legacy curv-like format, like `.w` files): `read_weight` and `write_weight`
+* Read and write FreeSurfer ASCII surface files (like `.asc` files): `read_asc` and `write_asc`
+* Read FreeSurfer linear transform files (like `talairach.lta`): `read_lta`
+* Read and write FreeSurfer paint files (annot-like without colortable, like `.paint` files): `read_paint` and `write_paint`
+* Configure global safety limits for file loading: `set_max_bytes_per_file()`, `set_max_vertices()`, and others
 
 Various utility functions are implemented for performing common computations on the returned structs, e.g. computing the vox2ras matrix from the MGH header data or finding all vertices in a brain surface parcellation that belong to a certain brain atlas region. The library can also export brain meshes in standard mesh formats (Wavefront Object Format, PLY format, glTF), optionally with vertex colors based on per-vertex data (from curv or MGH/MGZ files) and the viridis colormap for quick visualization in tools like MeshLab or Blender.
 

@@ -15,6 +15,11 @@ Current WIP
 - BRK: `FsAnnot::region_vertices()` now returns `Result<Vec<usize>>` instead of panicking on unknown region
 - BRK: `FsSurface::mesh_from_reader()` now returns `Result<BrainMesh>` instead of `BrainMesh`
 - BRK: `FsCurv::curv_data_from_reader()` now returns `Result<Vec<f32>>` instead of `Vec<f32>`
+- Add write support for annot files: `write_annot`
+- Add support for FreeSurfer weight files (.w): `read_weight`, `write_weight`, `FsWeight`
+- Add support for FreeSurfer ASCII surface files (.asc): `read_asc`, `write_asc`, `FsAsc`
+- Add support for FreeSurfer linear transform files (.lta): `read_lta`, `FsLta`, `LtaVolumeInfo`
+- Add support for FreeSurfer paint files (.paint): `read_paint`, `write_paint`, `FsPaint`
 
 Version 0.3.0
 -------------

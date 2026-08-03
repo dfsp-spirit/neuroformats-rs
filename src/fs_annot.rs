@@ -4,10 +4,10 @@
 //! or label. A so-called colortable contains data on the regions, including the region's
 //! name, an RGB display color, and a unique identifier.
 
-use byteordered::{ByteOrdered};
+use byteordered::{ByteOrdered, Endianness};
 
 use std::fs::File;
-use std::io::{BufReader, BufRead};
+use std::io::{BufReader, BufRead, BufWriter, Write};
 use std::path::{Path};
 use std::fmt;
 
@@ -326,6 +326,55 @@ pub fn read_annot<P: AsRef<Path> + Copy>(path: P) -> Result<FsAnnot> {
 }
 
 
+/// Write a brain parcellation to a FreeSurfer annot file.
+///
+/// Writes an [`FsAnnot`] struct to a file in FreeSurfer binary annotation format (version 2).
+/// The written file can be read back with [`read_annot`].
+///
+/// # Examples
+///
+/// ```no_run
+/// let annot = neuroformats::read_annot("/path/to/lh.aparc.annot").unwrap();
+/// neuroformats::write_annot("/tmp/test.annot", &annot).unwrap();
+/// ```
+pub fn write_annot<P: AsRef<Path> + Copy>(path: P, annot: &FsAnnot) -> std::io::Result<()> {
+    let f = File::create(path)?;
+    let f = BufWriter::new(f);
+    let mut f = ByteOrdered::runtime(f, Endianness::Big);
+
+    // Write number of vertices.
+    f.write_i32(annot.vertex_indices.len() as i32)?;
+
+    // Write vertex indices and labels.
+    for i in 0..annot.vertex_indices.len() {
+        f.write_i32(annot.vertex_indices[i])?;
+        f.write_i32(annot.vertex_labels[i])?;
+    }
+
+    // Write colortable header.
+    f.write_i32(1)?; // has_colortable = true
+    f.write_i32(-2)?; // format version flag
+    f.write_i32(annot.colortable.regions.len() as i32)?; // actual number of entries
+    f.write_i32(0)?; // orig_filename length (empty)
+    // No orig_filename bytes since length is 0
+    f.write_i32(annot.colortable.regions.len() as i32)?; // repeated entry count
+
+    // Write colortable entries.
+    for region in &annot.colortable.regions {
+        f.write_i32(region.id)?;
+        f.write_i32(region.name.len() as i32)?;
+        f.write(region.name.as_bytes())?;
+        f.write_i32(region.r)?;
+        f.write_i32(region.g)?;
+        f.write_i32(region.b)?;
+        f.write_i32(region.a)?;
+    }
+
+    f.flush()?;
+    Ok(())
+}
+
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -409,6 +458,37 @@ mod test {
                 assert_eq!(name, "nonexistent_region");
             }
             other => panic!("Expected RegionNotFound, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn an_annot_file_can_be_written_and_reread() {
+        const ANNOT_FILE: &str = "resources/subjects_dir/subject1/label/lh.aparc.annot";
+        let annot = read_annot(ANNOT_FILE).unwrap();
+
+        let dir = tempfile::tempdir().unwrap();
+        let tfile_path = dir.path().join("temp-file.annot");
+        let tfile_path = tfile_path.to_str().unwrap();
+        write_annot(tfile_path, &annot).unwrap();
+
+        let annot_re = read_annot(tfile_path).unwrap();
+        assert_eq!(annot.vertex_indices.len(), annot_re.vertex_indices.len());
+        assert_eq!(annot.vertex_labels.len(), annot_re.vertex_labels.len());
+        assert_eq!(annot.colortable.regions.len(), annot_re.colortable.regions.len());
+
+        // Verify vertex data matches.
+        for i in 0..annot.vertex_indices.len() {
+            assert_eq!(annot.vertex_indices[i], annot_re.vertex_indices[i]);
+            assert_eq!(annot.vertex_labels[i], annot_re.vertex_labels[i]);
+        }
+
+        // Verify colortable matches.
+        for i in 0..annot.colortable.regions.len() {
+            assert_eq!(annot.colortable.regions[i].name, annot_re.colortable.regions[i].name);
+            assert_eq!(annot.colortable.regions[i].r, annot_re.colortable.regions[i].r);
+            assert_eq!(annot.colortable.regions[i].g, annot_re.colortable.regions[i].g);
+            assert_eq!(annot.colortable.regions[i].b, annot_re.colortable.regions[i].b);
+            assert_eq!(annot.colortable.regions[i].a, annot_re.colortable.regions[i].a);
         }
     }
 }
