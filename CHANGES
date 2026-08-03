@@ -2,24 +2,26 @@ neuroformats Changes
 =====================
 
 
-If not explicitely mentioned, there are no breaking changes.
+Note: If not explicitely mentioned (via BRK tag), there are no breaking changes.
 
-Current WIP
------------
+
+Version 0.4.0 -- Security improvements and new file formats
+-------------------------------------------------------------
+- BRK: `FsAnnot::region_vertices()` now returns `Result<Vec<usize>>` instead of panicking on unknown region
+- BRK: `FsSurface::mesh_from_reader()` now returns `Result<BrainMesh>` instead of `BrainMesh`
+- BRK: `FsCurv::curv_data_from_reader()` now returns `Result<Vec<f32>>` instead of `Vec<f32>`
 - Signficantly improve documentation by adding 3 more examples applications
 - Major security hardening: add global max allocation setting (1 GiB default, user-configurable), add integer overflow checks on dimension multiplication, add NaN/Inf validation on header float fields and vertex data, enforce allocation limits in all file readers, add string length limits on variable-length strings, add label entry count limits, replace panics on malformed input with proper error types
 - Add new `config` module exposing `set_max_bytes_per_file()`, `set_max_vertices()`, `set_max_string_length()`, `set_max_label_entries()` and corresponding getters
 - Add `checked_mul_dims()`, `validate_finite_f32_slice()`, and `validate_finite_vertex_values()` utility functions
 - Add 6 new error variants: `AllocationTooLarge`, `InvalidHeaderValue`, `IntegerOverflow`, `StringTooLong`, `InvalidVertexValue`, `RegionNotFound`
 - Add 25 new tests for malicious/malformed header fields
-- BRK: `FsAnnot::region_vertices()` now returns `Result<Vec<usize>>` instead of panicking on unknown region
-- BRK: `FsSurface::mesh_from_reader()` now returns `Result<BrainMesh>` instead of `BrainMesh`
-- BRK: `FsCurv::curv_data_from_reader()` now returns `Result<Vec<f32>>` instead of `Vec<f32>`
 - Add write support for annot files: `write_annot`
 - Add support for FreeSurfer weight files (.w): `read_weight`, `write_weight`, `FsWeight`
 - Add support for FreeSurfer ASCII surface files (.asc): `read_asc`, `write_asc`, `FsAsc`
 - Add support for FreeSurfer linear transform files (.lta): `read_lta`, `FsLta`, `LtaVolumeInfo`
 - Add support for FreeSurfer paint files (.paint): `read_paint`, `write_paint`, `FsPaint`
+
 
 Version 0.3.0
 -------------
