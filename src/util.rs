@@ -279,7 +279,7 @@ mod test {
 
     #[test]
     fn the_min_and_max_of_an_f32_vector_with_nan_values_can_be_computed() {
-        let v: Vec<f32> = vec![0.4, 0.5, 0.9, std::f32::NAN, 0.01];
+        let v: Vec<f32> = vec![0.4, 0.5, 0.9, f32::NAN, 0.01];
         let (min, max) = vec32minmax(v.into_iter(), true);
         assert_abs_diff_eq!(min, 0.01, epsilon = 1e-8);
         assert_abs_diff_eq!(max, 0.9, epsilon = 1e-8);
