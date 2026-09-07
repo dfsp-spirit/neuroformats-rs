@@ -18,6 +18,15 @@ pub mod fs_surface;
 pub mod fs_weight;
 pub mod util;
 
+/// Re-export of the `ndarray` crate version used by this crate.
+///
+/// Some public items (e.g., the `Array4` voxel data in [`FsMghData`] and the
+/// `Array2` returned by [`FsMghHeader::vox2ras`]) expose `ndarray` types. Use
+/// `neuroformats::ndarray::...` to name these types and always get the exact
+/// version this crate was built against, without adding your own `ndarray`
+/// dependency.
+pub use ndarray;
+
 pub use config::{
     max_bytes_per_file, max_label_entries, max_string_length, max_vertices, reset_limits_to_defaults,
     set_max_bytes_per_file, set_max_label_entries, set_max_string_length, set_max_vertices,

@@ -6,7 +6,8 @@ Note: If not explicitely mentioned (via BRK tag), there are no breaking changes.
 
 Current WIP
 ------------
-- Update dependency `ndarray` to 0.17 and `ndarray-stats` to 0.7.0. Only relevant if you use `ndarray` directly yourself (e.g., with the `Array2` returned by `vox2ras()`); users of the file-format API are unaffected.
+- Update dependency `ndarray` to 0.17 and `ndarray-stats` to 0.7.0
+- Re-export the `ndarray` crate as `neuroformats::ndarray`, so users can name the array types returned in the public API (e.g., the `Array4` voxel data of `FsMghData`, the `Array2` from `vox2ras()`) without adding their own `ndarray` dependency. Additive, no breaking changes.
 
 
 
