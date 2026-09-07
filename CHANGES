@@ -4,6 +4,11 @@ neuroformats Changes
 
 Note: If not explicitely mentioned (via BRK tag), there are no breaking changes.
 
+Current WIP
+------------
+- Update dependency `ndarray` to 0.17 and `ndarray-stats` to 0.7.0. Only relevant if you use `ndarray` directly yourself (e.g., with the `Array2` returned by `vox2ras()`); users of the file-format API are unaffected.
+
+
 
 Version 0.4.0 -- Security improvements and new file formats
 -------------------------------------------------------------
