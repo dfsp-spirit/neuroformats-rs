@@ -78,6 +78,16 @@ quick_error! {
             display("Region '{}' not found in annotation", region)
         }
 
+        /// A NIfTI-1 file is malformed or uses an unsupported variant.
+        InvalidNiftiFormat(msg: String) {
+            display("Invalid NIfTI-1 file: {}", msg)
+        }
+
+        /// A NIfTI-1 file uses a data type that cannot be represented in the MGH volume model.
+        UnsupportedNiftiDataType(dtype: i16) {
+            display("Unsupported NIfTI-1 data type: {}. Supported types are UINT8 (2), INT16 (4), INT32 (8), FLOAT32 (16).", dtype)
+        }
+
         /// I/O Error
         Io(err: IOError) {
             from()

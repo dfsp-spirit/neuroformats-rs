@@ -6,6 +6,9 @@ Note: If not explicitely mentioned (via BRK tag), there are no breaking changes.
 
 Current WIP
 ------------
+- Add read and write support for NIfTI-1 volumes (`.nii` and `.nii.gz` files): new functions `read_nifti` and `write_nifti`, new structs `Nifti1` and `Nifti1Header`, and a new `nifti1` module. Both big- and little-endian files can be read; files are written in big-endian byte order. NIfTI volumes are held in the same volume model (`FsMgh`) as MGH/MGZ files, which makes converting between MGH/MGZ and NIfTI-1 files trivial (`Nifti1::from_mgh` / `Nifti1::to_mgh`). Only single-file NIfTI (.nii) is supported, not .hdr/.img pairs.
+- Proper handling of the voxel-to-RAS transform between the NIfTI s-form/q-form and the MGH header fields (delta, Mdc, Pxyz_c): the NIfTI s-form/q-form translation refers to the RAS coordinate of voxel (0,0,0), while the MGH `Pxyz_c` is the center voxel; the conversion handles this correctly and matches FreeSurfer's `mri_convert` output for the demo brain volume.
+- Fix: `FsMghHeader::vox2ras()` now scales each column of the rotation part by the voxel size of the corresponding volume axis (column scaling, as FreeSurfer does), instead of scaling rows. For volumes with isotropic voxel sizes or axis-aligned orientation the returned matrix is unchanged (all existing tests still pass), but for anisotropic and/or oblique volumes the result now agrees with FreeSurfer's `mri_info` output.
 - Update dependency `ndarray` to 0.17 and `ndarray-stats` to 0.7.0
 - Re-export the `ndarray` crate as `neuroformats::ndarray`, so users can name the array types returned in the public API (e.g., the `Array4` voxel data of `FsMghData`, the `Array2` from `vox2ras()`) without adding their own `ndarray` dependency. Additive, no breaking changes.
 

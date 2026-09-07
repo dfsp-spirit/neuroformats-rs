@@ -16,6 +16,7 @@ pub mod fs_mgh;
 pub mod fs_paint;
 pub mod fs_surface;
 pub mod fs_weight;
+pub mod nifti1;
 pub mod util;
 
 /// Re-export of the `ndarray` crate version used by this crate.
@@ -45,4 +46,5 @@ pub use fs_surface::{
     coord_center, coord_extrema, read_surf, write_surf, BrainMesh, FsSurface, FsSurfaceHeader,
 };
 pub use fs_weight::{read_weight, write_weight, FsWeight};
+pub use nifti1::{read_nifti, write_nifti, Nifti1, Nifti1Header};
 pub use util::{values_to_colors, vec32minmax};

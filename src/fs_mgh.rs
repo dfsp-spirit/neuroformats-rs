@@ -176,7 +176,12 @@ impl FsMghHeader {
         d[[2, 2]] = self.delta[2];
 
         let mdc_mat = Array2::from_shape_vec((3, 3), self.mdc_raw.to_vec()).unwrap();
-        let mdc_scaled: Array2<f32> = mdc_mat.dot(&d); // Scaled by the voxel dimensions (xsize, ysize, zsize). Note that this is actually transposed, we use .t() on this later when computing p_xyz_0.
+        // The rows of the 3x3 `mdc` matrix (as stored in the MGH header) are the unit
+        // direction cosines of the 3 volume axes. The linear part of the vox2ras matrix
+        // maps a unit step along voxel axis j to a world displacement of `delta[j] *
+        // mdc_row_j`, i.e. column j of the result is scaled by the voxel size of axis j
+        // (vox2ras = mdc^T * diag(delta), FreeSurfer's convention).
+        let mdc_scaled: Array2<f32> = d.dot(&mdc_mat); // = diag(delta) * mdc, scaled by the voxel dimensions (xsize, ysize, zsize). Note that this is actually transposed, we use .t() on this later when computing p_xyz_0.
 
         // CRS indices of the center voxel (the CRS is also known as IJK sometimes). These are always integers, we convert to f32 here for later matrix multiplication.
         let p_crs_c: Array1<f32> = array![

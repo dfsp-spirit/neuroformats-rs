@@ -38,6 +38,7 @@ neuroformats = "0.3.0"
 * Read and write FreeSurfer label files (like `subject/label/lh.cortex.label`): `read_label` and `write_label`
 * Read and write FreeSurfer brain surface parcellations (a.k.a. brain atlas, like `subject/label/lh.aparc.annot`): `read_annot` and `write_annot`
 * Read and write FreeSurfer brain volumes and other data from MGH and MGZ files: `read_mgh` and `write_mgh`
+* Read and write brain volumes and other data in NIfTI-1 format (like `.nii` or `.nii.gz` files): `read_nifti` and `write_nifti`. NIfTI volumes are handled in the same volume model as MGH/MGZ files, so converting between the two formats is trivial, with proper conversion of the voxel-to-RAS information (NIfTI s-form/q-form).
 * Read and write FreeSurfer per-vertex weight files (legacy curv-like format, like `.w` files): `read_weight` and `write_weight`
 * Read and write FreeSurfer ASCII surface files (like `.asc` files): `read_asc` and `write_asc`
 * Read FreeSurfer linear transform files (like `talairach.lta`): `read_lta`
@@ -103,6 +104,7 @@ fn main() {
 * [brain_morph](./examples/brain_morph/src/main.rs): A simple application that demonstrates working with morphometry data. It shows how to load brain surfaces and the cortical thickness values for each vertex. It then proceeds to load a cortex mask, and uses it to compute the average cortical thickness per hemisphere, restricted to cortical vertices (i.e., ignoring the medial wall).
 * [brain_atlas](./examples/brain_atlas/src/main.rs): Demonstrates how to load a brain surface atlas (the Desikan-Killiany atlas), find the vertices that belong to a specific atlas region, and the respective morphometry values for these vertices. The app then computes the average cortical thickness in a brain region.
 * [brain_export](./examples/brain_export/src/main.rs) This app loads a brain mesh and per-vertex data (sulcal depth at each vertex), and maps the per-vertex values to colors using the viridis colormap. It does this for both hemispheres, then combines the meshes into a single mesh, centers it at the origin, merges the color values as well, and exports the result as a vertex-colored PLY file. The resulting file can be visualized in standard mesh viewers like Blender or MeshLab.
+* [brain_nifti](./examples/brain_nifti/src/main.rs): A simple application that demonstrates converting brain volumes between the FreeSurfer MGH/MGZ format and the NIfTI-1 format. It loads a demo brain volume, converts it to NIfTI-1, writes it to a `.nii` file, reads it back, and verifies that both representations contain the same voxel data and geometry. It also prints the vox2ras matrix of the volume.
 
 See the [neuroformats API docs](https://docs.rs/neuroformats) and the [unit tests in the source code](./src/) for more examples for using the neuroformats functions.
 

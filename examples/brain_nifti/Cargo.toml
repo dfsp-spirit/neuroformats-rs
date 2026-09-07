@@ -1,0 +1,12 @@
+[package]
+name = "brain_nifti"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# Path dependency so that this example can be built and run against the current
+# (not yet released) source of the crate. Change this to `neuroformats = "0.4.0"`
+# once the NIfTI support is published.
+neuroformats = { path = "../.." }
