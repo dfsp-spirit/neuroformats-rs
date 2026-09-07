@@ -1380,6 +1380,14 @@ mod test {
         }
     }
 
+    /// Assert that two float slices are element-wise close within `eps`.
+    fn assert_f32_slice_approx(a: &[f32], b: &[f32], eps: f32) {
+        assert_eq!(a.len(), b.len(), "slices differ in length ({} vs {})", a.len(), b.len());
+        for (x, y) in a.iter().zip(b.iter()) {
+            assert_abs_diff_eq!(*x, *y, epsilon = eps);
+        }
+    }
+
     /// Assert that the RAS info of two FsMgh volumes matches.
     fn assert_same_ras(a: &FsMgh, b: &FsMgh) {
         assert_eq!(a.header.is_ras_good, b.header.is_ras_good);
@@ -1425,6 +1433,81 @@ mod test {
         let from_mgz = read_mgh(MGZ_FILE).unwrap();
         assert_same_data(&from_nii, &from_mgz);
         assert_same_ras(&from_nii, &from_mgz);
+    }
+
+    #[test]
+    fn the_freesurfer_brain_nifti_matches_the_brain_mgz() {
+        // `brain.nii` was created from `brain.mgz` with FreeSurfer's `mri_convert`, so the two
+        // files must describe the same volume: same voxel data and the same voxel-to-RAS geometry.
+        // This cross-checks the NIfTI reader against an independent reference (real FreeSurfer
+        // output), not just against a self-round-trip.
+        let nifti = read_nifti(NII_FILE).unwrap();
+        let from_nii = nifti.to_mgh();
+        let from_mgz = read_mgh(MGZ_FILE).unwrap();
+
+        // (1) Same dimensions, data type and RAS flag.
+        assert_eq!(from_nii.dim(), from_mgz.dim());
+        assert_eq!(from_nii.header.dtype, from_mgz.header.dtype);
+        assert_eq!(from_nii.header.dtype, MRI_UCHAR);
+        assert_eq!(from_nii.header.is_ras_good, 1);
+        assert_eq!(from_mgz.header.is_ras_good, 1);
+
+        // (2) Same voxel data.
+        let nii_data = from_nii.data.mri_uchar.as_ref().unwrap();
+        let mgz_data = from_mgz.data.mri_uchar.as_ref().unwrap();
+        assert_eq!(nii_data, mgz_data);
+
+        // (3) The RAS header fields derived from the NIfTI file equal the ones read from the MGH
+        // file, and match the known reference values of this demo volume.
+        let expected_delta = [1.0_f32, 1.0, 1.0];
+        let expected_mdc_raw = [-1.0_f32, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 1.0, 0.0];
+        let expected_p_xyz_c = [-0.49995422_f32, 29.372742, -48.90473];
+        assert_f32_slice_approx(&from_nii.header.delta, &expected_delta, 1e-4);
+        assert_f32_slice_approx(&from_nii.header.mdc_raw, &expected_mdc_raw, 1e-4);
+        assert_f32_slice_approx(&from_nii.header.p_xyz_c, &expected_p_xyz_c, 1e-4);
+        assert_f32_slice_approx(&from_mgz.header.delta, &expected_delta, 1e-4);
+        assert_f32_slice_approx(&from_mgz.header.mdc_raw, &expected_mdc_raw, 1e-4);
+        assert_f32_slice_approx(&from_mgz.header.p_xyz_c, &expected_p_xyz_c, 1e-4);
+
+        // (4) The vox2ras matrix reconstructed from the NIfTI file equals the one from the MGH
+        // file, and both equal the affine that FreeSurfer stored directly in the NIfTI s-form
+        // (the raw srow_x/y/z rows of `brain.nii`), which is the voxel-(0,0,0)-anchored affine.
+        let vox2ras_nii = from_nii.header.vox2ras().unwrap();
+        let vox2ras_mgz = from_mgz.header.vox2ras().unwrap();
+        assert_abs_diff_eq!(vox2ras_nii, vox2ras_mgz, epsilon = 1e-2);
+
+        let expected_vox2ras = [
+            [-1.0_f32, 0.0, 0.0, 127.5],
+            [0.0, 0.0, 1.0, -98.6273],
+            [0.0, -1.0, 0.0, 79.0953],
+            [0.0, 0.0, 0.0, 1.0],
+        ];
+        let sform_rows = [nifti.header.srow_x, nifti.header.srow_y, nifti.header.srow_z];
+        for i in 0..3 {
+            for j in 0..4 {
+                assert_abs_diff_eq!(vox2ras_nii[[i, j]], expected_vox2ras[i][j], epsilon = 1e-2);
+                // Our reconstruction reproduces the affine stored in the file's s-form.
+                assert_abs_diff_eq!(vox2ras_nii[[i, j]], sform_rows[i][j], epsilon = 1e-2);
+            }
+        }
+
+        // (5) Anchor handling: the s-form translation stored in `brain.nii` is the RAS of voxel
+        // (0,0,0) (P0 = (127.5, -98.6, 79.1)), which is *not* the MGH center voxel p_xyz_c
+        // (about (-0.5, 29.4, -48.9)). Reading the file must re-anchor that translation into the
+        // MGH center convention (see (3)).
+        let sform_translation = [
+            nifti.header.srow_x[3],
+            nifti.header.srow_y[3],
+            nifti.header.srow_z[3],
+        ];
+        assert_f32_slice_approx(&sform_translation, &[127.5_f32, -98.6273, 79.0953], 1e-2);
+        // The two anchors really do differ (by L * (n/2), about half the volume extent).
+        for i in 0..3 {
+            assert!(
+                (sform_translation[i] - from_nii.header.p_xyz_c[i]).abs() > 10.0,
+                "expected the voxel-(0,0,0) RAS and the center voxel RAS to differ by more than 10 mm"
+            );
+        }
     }
 
     #[test]
