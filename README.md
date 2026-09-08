@@ -28,7 +28,7 @@ Alternatively, you could manually add it as a dependency in your `Cargo.toml` fi
 
 ```toml
 [dependencies]
-neuroformats = "0.3.0"
+neuroformats = "0.5.0"
 ```
 
 ## Features
